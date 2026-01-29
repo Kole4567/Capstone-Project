@@ -1,3 +1,2 @@
-Debug=True
 SECRET_KEY='django-insecure-_-*npi@aj$bg_$#-nz^#l6o^oc*061w@msza(1%v#-b9y!hw#k'
 Django>=4.2
