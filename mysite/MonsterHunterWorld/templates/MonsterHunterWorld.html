@@ -1,0 +1,115 @@
+<!doctype html>
+{% load static %}
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photo Grid with Tailwind CSS</title>
+    {% load static %}
+    <link
+      rel="stylesheet"
+      href="{% static 'css/output.css' %}"
+      type="text/css"
+    />
+    <!-- We add the output Tailwind CSS here -->
+  </head>
+ 
+  <body class="flex h-screen items-center justify-center">
+    <div class="m-auto w-3/5">
+      <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div class="grid gap-4">
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow shadow-lg"
+              src="{{ photo_1 }}"
+              alt=""
+            />
+          </div>
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_2 }}"
+              alt=""
+            />
+          </div>
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_3 }}"
+              alt=""
+            />
+          </div>
+        </div>
+        <div class="grid gap-4">
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_4 }}"
+              alt=""
+            />
+          </div>
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_5 }}"
+              alt=""
+            />
+          </div>
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_6 }}"
+              alt=""
+            />
+          </div>
+        </div>
+        <div class="grid gap-4">
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_7 }}"
+              alt=""
+            />
+          </div>
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_8 }}"
+              alt=""
+            />
+          </div>
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_9 }}"
+              alt=""
+            />
+          </div>
+        </div>
+        <div class="grid gap-4">
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_10 }}"
+              alt=""
+            />
+          </div>
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_11 }}"
+              alt=""
+            />
+          </div>
+          <div>
+            <img
+              class="h-auto max-w-full rounded-lg shadow"
+              src="{{ photo_12 }}"
+              alt=""
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
