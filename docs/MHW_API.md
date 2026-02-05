@@ -157,6 +157,25 @@ Response Example
   }
 ]
 
+
+Optional Query Parameters
+
+- is_elder_dragon (boolean)
+  Filters monsters by Elder Dragon status.
+  Example:
+  /api/v1/mhw/monsters/?is_elder_dragon=true
+
+- element (string)
+  Filters monsters that have a matching elemental weakness.
+  This filter uses kind="element" only (ailments are excluded).
+  Example:
+  /api/v1/mhw/monsters/?element=Fire
+
+- min_stars (integer, 1–3)
+  Filters by minimum weakness stars. Requires element.
+  Example:
+  /api/v1/mhw/monsters/?element=Fire&min_stars=2
+
 --------------------------------------------------
 4.2 Get Monster Detail
 --------------------------------------------------
