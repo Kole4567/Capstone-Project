@@ -6,6 +6,15 @@ from .serializers import MonsterListSerializer, MonsterDetailSerializer
 
 
 class MonsterListView(generics.ListAPIView):
+    """
+    GET /api/v1/mhw/monsters/
+
+    Optional query parameters:
+    - is_elder_dragon (boolean)
+    - element (string, case-insensitive)
+    - min_stars (integer, 1–3, requires element)
+    """
+
     serializer_class = MonsterListSerializer
 
     def get_queryset(self):
@@ -13,7 +22,7 @@ class MonsterListView(generics.ListAPIView):
         params = self.request.query_params
 
         # --------------------------------------------------
-        # is_elder_dragon filter
+        # Filter: is_elder_dragon
         # --------------------------------------------------
         is_elder = params.get("is_elder_dragon")
         if is_elder is not None:
@@ -24,12 +33,13 @@ class MonsterListView(generics.ListAPIView):
                 queryset = queryset.filter(is_elder_dragon=False)
 
         # --------------------------------------------------
-        # element + min_stars filter
+        # Filter: element + min_stars
         # --------------------------------------------------
         element = params.get("element")
         if element:
             element = element.strip()
 
+            # Filter by elemental weaknesses only
             queryset = queryset.filter(
                 weaknesses__kind="element",
                 weaknesses__name__iexact=element,
@@ -38,12 +48,16 @@ class MonsterListView(generics.ListAPIView):
             min_stars = params.get("min_stars")
             if min_stars is not None:
                 try:
-                    min_stars = int(min_stars)
-                    queryset = queryset.filter(
-                        weaknesses__stars__gte=min_stars
-                    )
+                    min_stars_int = int(min_stars)
+
+                    # stars are defined as 1–3 in the API contract
+                    if 1 <= min_stars_int <= 3:
+                        queryset = queryset.filter(
+                            weaknesses__stars__gte=min_stars_int
+                        )
                 except ValueError:
-                    pass  # ignore invalid min_stars
+                    # Ignore invalid min_stars values
+                    pass
 
             queryset = queryset.distinct()
 
@@ -51,6 +65,12 @@ class MonsterListView(generics.ListAPIView):
 
 
 class MonsterDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/v1/mhw/monsters/{id}/
+
+    {id} refers to Monster.id (internal database ID)
+    """
+
     queryset = Monster.objects.all()
     serializer_class = MonsterDetailSerializer
     lookup_field = "id"
