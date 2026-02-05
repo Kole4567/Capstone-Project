@@ -1,5 +1,4 @@
 from rest_framework import generics
-from django.db.models import Q
 
 from .models import Monster
 from .serializers import MonsterListSerializer, MonsterDetailSerializer
@@ -13,12 +12,20 @@ class MonsterListView(generics.ListAPIView):
     - is_elder_dragon (boolean)
     - element (string, case-insensitive)
     - min_stars (integer, 1–3, requires element)
+    - order_by (string)
     """
 
     serializer_class = MonsterListSerializer
 
+    ALLOWED_ORDER_FIELDS = {
+        "id",
+        "name",
+        "monster_type",
+        "is_elder_dragon",
+    }
+
     def get_queryset(self):
-        queryset = Monster.objects.all().order_by("id")
+        queryset = Monster.objects.all()
         params = self.request.query_params
 
         # --------------------------------------------------
@@ -39,7 +46,6 @@ class MonsterListView(generics.ListAPIView):
         if element:
             element = element.strip()
 
-            # Filter by elemental weaknesses only
             queryset = queryset.filter(
                 weaknesses__kind="element",
                 weaknesses__name__iexact=element,
@@ -49,28 +55,28 @@ class MonsterListView(generics.ListAPIView):
             if min_stars is not None:
                 try:
                     min_stars_int = int(min_stars)
-
-                    # stars are defined as 1–3 in the API contract
                     if 1 <= min_stars_int <= 3:
                         queryset = queryset.filter(
                             weaknesses__stars__gte=min_stars_int
                         )
                 except ValueError:
-                    # Ignore invalid min_stars values
                     pass
 
             queryset = queryset.distinct()
+
+        # --------------------------------------------------
+        # Ordering
+        # --------------------------------------------------
+        order_by = params.get("order_by")
+        if order_by:
+            field = order_by.lstrip("-")
+            if field in self.ALLOWED_ORDER_FIELDS:
+                queryset = queryset.order_by(order_by)
 
         return queryset
 
 
 class MonsterDetailView(generics.RetrieveAPIView):
-    """
-    GET /api/v1/mhw/monsters/{id}/
-
-    {id} refers to Monster.id (internal database ID)
-    """
-
     queryset = Monster.objects.all()
     serializer_class = MonsterDetailSerializer
     lookup_field = "id"
