@@ -32,18 +32,22 @@ Important
 - Always use the internal API endpoints described in this document.
 - This ensures stability, performance, and consistent data formatting.
 
+--------------------------------------------------
 2.1 Local Setup – Data Preparation
+--------------------------------------------------
 
 The backend does not fetch data dynamically from external sources at runtime.
 All Monster Hunter World data must be imported into the internal database
 before using the API.
 
-For this final project, the Monster Hunter World monster dataset is included
-directly in the repository to simplify team setup.
+For this final project, the full Monster Hunter World monster dataset is included
+directly in the repository.
 
 Team members do NOT need to download data from external websites.
 
+--------------------------------------------------
 Step 1. Environment Setup
+--------------------------------------------------
 
 - git clone <repository-url>
 - cd Capstone-Project/mysite
@@ -52,17 +56,25 @@ Step 1. Environment Setup
 - pip install -r requirements.txt
 - python manage.py migrate
 
-Step 2. Import Monster Data
+--------------------------------------------------
+Step 2. Import Monster Data (Required)
+--------------------------------------------------
 
-Import the included monster dataset into the local database.
+Import the full monster dataset into the local database.
 
 - python manage.py import_mhw --monsters data/mhw_monsters.json --reset
 
-This command populates the database with all monsters and their weaknesses.
+This command:
+- Clears existing monster data
+- Imports all monsters and their weaknesses
+- Ensures a consistent dataset across all team members
 
+Warning:
+- The --reset flag is required to avoid leftover test or partial data.
+
+--------------------------------------------------
 Step 3. Run the Server
-
-Start the development server.
+--------------------------------------------------
 
 - python manage.py runserver
 
@@ -72,15 +84,16 @@ Verify the API endpoints.
 - GET /api/v1/mhw/monsters/{id}/
 
 Note:
-- The data file (data/mhw_monsters.json) is tracked in the repository for
-  final project convenience.
-- Team members only need to run the import command once.
+- The data file (data/mhw_monsters.json) is tracked in the repository.
+- Team members only need to run the import command once per local database.
 
 ==================================================
 3. Core Data Models (Conceptual)
 ==================================================
 
+--------------------------------------------------
 3.1 Monster
+--------------------------------------------------
 
 Represents a huntable monster.
 
@@ -90,12 +103,13 @@ Fields
 - name (string): Monster name
 - monster_type (string): Classification (Flying Wyvern, Elder Dragon, etc.)
 - is_elder_dragon (boolean)
-- external_id is a numeric ID sourced from mhw-db.com and is treated as stable within this project.
 
+Notes
+- external_id is sourced from mhw-db.com and treated as stable within this project.
 
 --------------------------------------------------
-
 3.2 Element
+--------------------------------------------------
 
 Represents an elemental damage type.
 
@@ -107,8 +121,8 @@ Examples
 - Dragon
 
 --------------------------------------------------
-
 3.3 MonsterWeakness
+--------------------------------------------------
 
 Represents a monster’s elemental or status weakness.
 
@@ -157,8 +171,9 @@ Response Example
   }
 ]
 
-
+--------------------------------------------------
 Optional Query Parameters
+--------------------------------------------------
 
 - is_elder_dragon (boolean)
   Filters monsters by Elder Dragon status.
@@ -167,12 +182,13 @@ Optional Query Parameters
 
 - element (string)
   Filters monsters that have a matching elemental weakness.
-  This filter uses kind="element" only (ailments are excluded).
+  Only weaknesses with kind="element" are considered.
   Example:
   /api/v1/mhw/monsters/?element=Fire
 
 - min_stars (integer, 1–3)
-  Filters by minimum weakness stars. Requires element.
+  Filters by minimum weakness stars.
+  Requires element parameter.
   Example:
   /api/v1/mhw/monsters/?element=Fire&min_stars=2
 
@@ -183,8 +199,9 @@ Optional Query Parameters
 GET /api/v1/mhw/monsters/{id}/
 
 Important
-- {id} refers to the internal database ID (Monster.id), not the mhw-db external_id.
-- To fetch a specific monster, first call GET /api/v1/mhw/monsters/ and use the returned "id" field.
+- {id} refers to the internal database ID (Monster.id)
+- NOT the mhw-db external_id
+- Always retrieve the id from the monster list endpoint first
 
 Returns a single monster with its weaknesses.
 
@@ -222,47 +239,41 @@ Response Example
 4.2.1 Quick Test (Local)
 --------------------------------------------------
 
-This section provides a minimal verification workflow to confirm that the API
-is running and returning data according to this contract.
-
 Start server
-- cd mysite
-- source venv/bin/activate
 - python manage.py runserver
 
 Get monster list
 - curl http://127.0.0.1:8000/api/v1/mhw/monsters/
 
-Get monster detail (example: id = 59)
-- curl http://127.0.0.1:8000/api/v1/mhw/monsters/59/
+Get monster detail (example: id = 5)
+- curl http://127.0.0.1:8000/api/v1/mhw/monsters/5/
 
 Expected Results
-- GET /api/v1/mhw/monsters/ returns a JSON array of monsters.
-- GET /api/v1/mhw/monsters/{id}/ returns a JSON object including a weaknesses array.
+- Monster list returns many monsters
+- Monster detail returns a weaknesses array
 
-Note
-If the database is empty, run the import command before testing.
+If only a few monsters appear:
+- Re-run the import command with --reset
 
 --------------------------------------------------
-4.2.2 Importing Data (Required for Local Testing)
+4.2.2 Testing Dataset (Optional)
 --------------------------------------------------
 
-The backend does not fetch data dynamically from external sources.
-All data must be imported into the internal database.
+A small test dataset is included for development purposes only.
 
-Run migrations
-- python manage.py migrate
-
-Import monster data
 - python manage.py import_mhw --monsters test_monsters.json
 
-After importing, re-run the API requests in section 4.2.1.
+Warning:
+- test_monsters.json contains only a small subset of monsters
+- Using this file will result in limited API data
+- Do NOT use for frontend or recommendation development
 
---------------------------------------------------
+==================================================
 4.3 Error Responses
---------------------------------------------------
+==================================================
 
 404 Not Found
+
 Returned when the requested resource does not exist.
 
 Example
@@ -276,17 +287,16 @@ Example
 ==================================================
 
 For Frontend Team
-- Use name for display purposes.
-- Convert stars into visual indicators (e.g. star icons).
-- Elder Dragons can be highlighted using is_elder_dragon.
-- Do not derive game logic from display values.
-- All calculations must rely on raw API fields.
+- Use name for display purposes
+- Convert stars into visual indicators (e.g. star icons)
+- Elder Dragons can be highlighted using is_elder_dragon
+- Do not derive game logic from display values
 
 For Recommendation Algorithm Team
-- Use element-type weaknesses only when matching weapons.
-- Higher stars values should be treated as higher weight.
-- Monsters may have multiple effective elements.
-- Do not hardcode element effectiveness outside the API.
+- Use element-type weaknesses only
+- Higher stars should be treated as higher weight
+- Monsters may have multiple effective elements
+- Do not hardcode element effectiveness outside the API
 
 ==================================================
 6. API Contract Rules
@@ -294,14 +304,12 @@ For Recommendation Algorithm Team
 
 This document is an API contract.
 
-- If API responses or data structures change, this document must be updated.
-- Frontend and recommendation logic depend on the structures defined here.
-- Breaking changes require version updates (e.g. v2).
+- Any API changes must update this document
+- Breaking changes require version updates (e.g. v2)
 
 External ID Policy
-
-- external_id is an integer (mhw-db numeric ID).
-- If a human-readable identifier is needed later, a new field (e.g. external_slug) will be added instead of changing the type.
+- external_id is an integer (mhw-db numeric ID)
+- Human-readable identifiers will be added as new fields if needed
 
 ==================================================
 7. Future Extensions (Planned)
