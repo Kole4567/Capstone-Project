@@ -46,6 +46,8 @@ Fields
 - name (string): Monster name
 - monster_type (string): Classification (Flying Wyvern, Elder Dragon, etc.)
 - is_elder_dragon (boolean)
+- external_id is a numeric ID sourced from mhw-db.com and is treated as stable within this project.
+
 
 --------------------------------------------------
 
@@ -228,6 +230,11 @@ This document is an API contract.
 - If API responses or data structures change, this document must be updated.
 - Frontend and recommendation logic depend on the structures defined here.
 - Breaking changes require version updates (e.g. v2).
+
+External ID Policy
+
+- external_id is an integer (mhw-db numeric ID).
+- If a human-readable identifier is needed later, a new field (e.g. external_slug) will be added instead of changing the type.
 
 ==================================================
 7. Future Extensions (Planned)
