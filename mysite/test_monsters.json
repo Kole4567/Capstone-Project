@@ -1,0 +1,36 @@
+[
+    {
+      "external_id": 1,
+      "name": "Great Jagras",
+      "monster_type": "Fanged Wyvern",
+      "is_elder_dragon": false,
+      "weaknesses": [
+        {
+          "kind": "element",
+          "name": "Fire",
+          "stars": 2,
+          "condition": null
+        },
+        {
+          "kind": "element",
+          "name": "Thunder",
+          "stars": 1,
+          "condition": null
+        }
+      ]
+    },
+    {
+      "external_id": 2,
+      "name": "Nergigante",
+      "monster_type": "Elder Dragon",
+      "is_elder_dragon": true,
+      "weaknesses": [
+        {
+          "kind": "element",
+          "name": "Thunder",
+          "stars": 3,
+          "condition": null
+        }
+      ]
+    }
+  ]
