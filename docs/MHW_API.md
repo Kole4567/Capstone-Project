@@ -119,6 +119,10 @@ Response Example
 
 GET /api/v1/mhw/monsters/{id}/
 
+Important
+- {id} refers to the internal database ID (Monster.id), not the mhw-db external_id.
+- To fetch a specific monster, first call GET /api/v1/mhw/monsters/ and use the returned "id" field.
+
 Returns a single monster with its weaknesses.
 
 Response Example
@@ -166,8 +170,8 @@ Start server
 Get monster list
 - curl http://127.0.0.1:8000/api/v1/mhw/monsters/
 
-Get monster detail (example: id = 1)
-- curl http://127.0.0.1:8000/api/v1/mhw/monsters/1/
+Get monster detail (example: id = 59)
+- curl http://127.0.0.1:8000/api/v1/mhw/monsters/59/
 
 Expected Results
 - GET /api/v1/mhw/monsters/ returns a JSON array of monsters.
