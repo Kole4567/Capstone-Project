@@ -176,6 +176,10 @@ Optional Query Parameters
   Example:
   /api/v1/mhw/monsters/?element=Fire&min_stars=2
 
+- min_stars is only applied when element is provided.
+
+- Invalid or out-of-range query parameter values are ignored and do not produce errors.
+
 --------------------------------------------------
 4.2 Get Monster Detail
 --------------------------------------------------
