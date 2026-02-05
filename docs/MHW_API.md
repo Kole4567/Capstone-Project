@@ -32,6 +32,50 @@ Important
 - Always use the internal API endpoints described in this document.
 - This ensures stability, performance, and consistent data formatting.
 
+2.1 Local Setup – Data Preparation
+
+The backend does not fetch data dynamically from external sources at runtime.
+All Monster Hunter World data must be imported into the internal database
+before using the API.
+
+For this final project, the Monster Hunter World monster dataset is included
+directly in the repository to simplify team setup.
+
+Team members do NOT need to download data from external websites.
+
+Step 1. Environment Setup
+
+- git clone <repository-url>
+- cd Capstone-Project/mysite
+- python -m venv venv
+- source venv/bin/activate
+- pip install -r requirements.txt
+- python manage.py migrate
+
+Step 2. Import Monster Data
+
+Import the included monster dataset into the local database.
+
+- python manage.py import_mhw --monsters data/mhw_monsters.json --reset
+
+This command populates the database with all monsters and their weaknesses.
+
+Step 3. Run the Server
+
+Start the development server.
+
+- python manage.py runserver
+
+Verify the API endpoints.
+
+- GET /api/v1/mhw/monsters/
+- GET /api/v1/mhw/monsters/{id}/
+
+Note:
+- The data file (data/mhw_monsters.json) is tracked in the repository for
+  final project convenience.
+- Team members only need to run the import command once.
+
 ==================================================
 3. Core Data Models (Conceptual)
 ==================================================
