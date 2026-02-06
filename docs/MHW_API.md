@@ -81,6 +81,7 @@ Step 3. Run the Server
 Verify the API endpoints.
 
 - GET /api/v1/mhw/monsters/
+- GET /api/v1/mhw/monsters/paged/
 - GET /api/v1/mhw/monsters/{id}/
 
 Note:
@@ -150,7 +151,7 @@ Base URL
 
 GET /api/v1/mhw/monsters/
 
-Returns a list of all monsters.
+Returns a list of all monsters as a raw JSON array.
 
 Response Example
 
@@ -170,6 +171,11 @@ Response Example
     "is_elder_dragon": true
   }
 ]
+
+Note
+- This endpoint intentionally returns a raw JSON array.
+- Pagination is NOT applied to preserve the original v1 contract.
+- Use the paged endpoint below when pagination is required.
 
 --------------------------------------------------
 Optional Query Parameters
@@ -195,6 +201,43 @@ Optional Query Parameters
 - min_stars is only applied when element is provided.
 
 - Invalid or out-of-range query parameter values are ignored and do not produce errors.
+
+--------------------------------------------------
+4.1.1 Get All Monsters (Paged)
+--------------------------------------------------
+
+GET /api/v1/mhw/monsters/paged/
+
+Returns the same monster list as /monsters/ but with pagination.
+
+This endpoint exists to support large result sets without breaking the v1
+response format of /monsters/.
+
+Pagination Parameters (Limit / Offset)
+
+- limit (integer)
+  Number of results to return.
+  Default: 50
+
+- offset (integer)
+  Starting index for results.
+  Default: 0
+
+Response Format
+
+{
+  "count": <integer>,
+  "next": <string|null>,
+  "previous": <string|null>,
+  "results": [ <monster>, ... ]
+}
+
+Example
+
+- curl "http://127.0.0.1:8000/api/v1/mhw/monsters/paged/?limit=5&offset=0"
+
+All filtering and ordering parameters supported by /monsters/ are also supported
+by this endpoint.
 
 --------------------------------------------------
 4.2 Get Monster Detail
@@ -249,11 +292,15 @@ Start server
 Get monster list
 - curl http://127.0.0.1:8000/api/v1/mhw/monsters/
 
+Get monster list (paged)
+- curl http://127.0.0.1:8000/api/v1/mhw/monsters/paged/?limit=5&offset=0
+
 Get monster detail (example: id = 5)
 - curl http://127.0.0.1:8000/api/v1/mhw/monsters/5/
 
 Expected Results
 - Monster list returns many monsters
+- Paged list returns count, next/previous, and results
 - Monster detail returns a weaknesses array
 
 If only a few monsters appear:
@@ -267,7 +314,7 @@ A small test dataset is included for development purposes only.
 
 - python manage.py import_mhw --monsters test_monsters.json
 
-Warning:
+Warning
 - test_monsters.json contains only a small subset of monsters
 - Using this file will result in limited API data
 - Do NOT use for frontend or recommendation development
