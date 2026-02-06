@@ -1,11 +1,16 @@
 from django.urls import path
-from .api_views import MonsterListView, MonsterDetailView
+from .api_views import MonsterListView, MonsterListPagedView, MonsterDetailView
 
 urlpatterns = [
     path(
         "api/v1/mhw/monsters/",
         MonsterListView.as_view(),
         name="mhw-monster-list",
+    ),
+    path(
+        "api/v1/mhw/monsters/paged/",
+        MonsterListPagedView.as_view(),
+        name="mhw-monster-list-paged",
     ),
     path(
         "api/v1/mhw/monsters/<int:id>/",

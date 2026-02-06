@@ -1,4 +1,5 @@
 from rest_framework import generics
+from rest_framework.pagination import LimitOffsetPagination
 
 from .models import Monster
 from .serializers import MonsterListSerializer, MonsterDetailSerializer
@@ -72,11 +73,46 @@ class MonsterListView(generics.ListAPIView):
             field = order_by.lstrip("-")
             if field in self.ALLOWED_ORDER_FIELDS:
                 queryset = queryset.order_by(order_by)
+            else:
+                # If invalid, fall back to a stable default order
+                queryset = queryset.order_by("id")
+        else:
+            # Default order when no order_by is provided
+            queryset = queryset.order_by("id")
 
         return queryset
 
 
+class MonsterLimitOffsetPagination(LimitOffsetPagination):
+    """
+    Pagination settings for /monsters/paged/
+
+    default_limit: items returned when limit is not specified
+    max_limit: cap to prevent huge responses
+    """
+    default_limit = 50
+    max_limit = 200
+
+
+class MonsterListPagedView(MonsterListView):
+    """
+    GET /api/v1/mhw/monsters/paged/
+
+    Same filters/order_by as /monsters/ but returns a paginated response:
+    {
+      "count": ...,
+      "next": "...",
+      "previous": "...",
+      "results": [...]
+    }
+    """
+    pagination_class = MonsterLimitOffsetPagination
+
+
 class MonsterDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/v1/mhw/monsters/{id}/
+    """
     queryset = Monster.objects.all()
     serializer_class = MonsterDetailSerializer
     lookup_field = "id"
