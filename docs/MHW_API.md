@@ -68,41 +68,33 @@ Step 3. Import Monster Data (Required)
 Optional (development only):
 - python manage.py import_mhw --monsters data/mhw_monsters.json --dry-run --limit 10
 
-This command:
-- Deletes existing monster and weakness data
-- Imports a clean, normalized dataset
-- Ensures consistent data across all team members
+--------------------------------------------------
+Step 4. Import Weapon Data (Required)
+--------------------------------------------------
+
+- python manage.py import_weapons --weapons data/mhw_weapons.json --reset
+
+Optional (development only):
+- python manage.py import_weapons --weapons data/mhw_weapons.json --dry-run --limit 10
 
 --------------------------------------------------
-Step 4. Run Server
+Step 5. Run Server
 --------------------------------------------------
 
 - python manage.py runserver
 
 --------------------------------------------------
-Step 5. Verify API Endpoints
+Step 6. Verify API Endpoints
 --------------------------------------------------
-
-Browser or curl tests:
 
 - GET /api/v1/mhw/monsters/
-- GET /api/v1/mhw/monsters/paged/
-- GET /api/v1/mhw/monsters/{id}/
-
-Example:
-- curl "http://127.0.0.1:8000/api/v1/mhw/monsters/?element=Fire&min_stars=2"
+- GET /api/v1/mhw/weapons/
 
 --------------------------------------------------
-Step 6. Run Backend Tests (Recommended)
+Step 7. Run Backend Tests (Recommended)
 --------------------------------------------------
 
 - python manage.py test MonsterHunterWorld
-
-These tests verify:
-- Import pipeline stability
-- Schema constraints
-- API response correctness
-- Duplicate prevention under joins
 
 ==================================================
 4. Import Pipeline – Stability Design
@@ -116,17 +108,6 @@ Design Goals
 - Re-import must always result in a clean database
 - Internal DB is the single source of truth
 
-Key Design Decisions
-- All JSON access uses safe parsing (.get)
-- Multiple source formats are detected heuristically
-- Weaknesses are fully replaced per monster on each import
-- Invalid star values are skipped
-- Reset + import runs inside a transaction
-
-Safety Options
-- --dry-run validates without DB writes
-- --limit imports only the first N monsters
-
 ==================================================
 5. Core Data Models (Conceptual)
 ==================================================
@@ -135,24 +116,16 @@ Safety Options
 5.1 Monster
 --------------------------------------------------
 
-Represents a huntable monster.
-
 Fields
 - id (integer): Internal database ID
-- external_id (integer): Stable ID from mhw-db (unique, non-null)
+- external_id (integer): Stable ID from mhw-db (unique)
 - name (string)
 - monster_type (string)
 - is_elder_dragon (boolean)
 
-Notes
-- external_id is required for safe re-import and upsert behavior
-- API routing always uses internal id
-
 --------------------------------------------------
 5.2 MonsterWeakness
 --------------------------------------------------
-
-Represents elemental or status weaknesses.
 
 Fields
 - kind (string): "element" or "ailment"
@@ -160,10 +133,31 @@ Fields
 - stars (integer, 1–3)
 - condition (string, optional)
 
-Design Notes
-- Stars are constrained at DB level (1–3 only)
-- Condition is preserved to retain gameplay context
-- Multiple weaknesses may exist for same element with different conditions
+Notes
+- Multiple weaknesses may exist for the same element with different conditions
+- Stars are constrained at the database level (1–3 only)
+
+--------------------------------------------------
+5.3 Weapon
+--------------------------------------------------
+
+Represents a craftable weapon.
+
+Fields
+- id (integer): Internal database ID
+- external_id (integer): mhw-db weapon ID
+- name (string)
+- weapon_type (string): Great Sword, Long Sword, Bow, etc.
+- rarity (integer)
+- attack_raw (integer)
+- attack_display (integer)
+- affinity (integer)
+- element (string, optional)
+
+Notes
+- Weapons are independent of monsters
+- Element data is used later for build calculations
+- Some weapons have no elemental damage
 
 ==================================================
 6. API Documentation (Swagger / OpenAPI)
@@ -172,13 +166,13 @@ Design Notes
 Auto-generated documentation endpoints:
 
 - OpenAPI Schema:
-  http://127.0.0.1:8000/api/schema/
+  /api/schema/
 
 - Swagger UI:
-  http://127.0.0.1:8000/api/docs/
+  /api/docs/
 
 - Redoc:
-  http://127.0.0.1:8000/api/redoc/
+  /api/redoc/
 
 ==================================================
 7. API Endpoints
@@ -193,40 +187,50 @@ Base URL:
 
 GET /api/v1/mhw/monsters/
 
-Returns a raw JSON array (no pagination).
-
 Optional Query Parameters
 - is_elder_dragon (boolean)
 - element (string)
-- min_stars (integer, 1–3, requires element)
+- min_stars (integer, 1–3)
 - order_by (id, name, monster_type, is_elder_dragon)
-
---------------------------------------------------
-7.1.1 Get Monsters (Paged)
---------------------------------------------------
-
-GET /api/v1/mhw/monsters/paged/
-
-Pagination Parameters
-- limit (default: 50)
-- offset (default: 0)
-
-Response
-{
-  "count": number,
-  "next": string | null,
-  "previous": string | null,
-  "results": [...]
-}
 
 --------------------------------------------------
 7.2 Get Monster Detail
 --------------------------------------------------
 
-GET /api/v1/mhw/monsters/{id}/
+GET /api/v1/mhw/monsters/{id}
 
-- id refers to internal Monster.id
-- Includes full weakness list
+--------------------------------------------------
+7.3 Get All Weapons
+--------------------------------------------------
+
+GET /api/v1/mhw/weapons/
+
+Optional Query Parameters
+- weapon_type (string, exact match)
+- element (string, case-insensitive)
+- min_rarity (integer)
+- max_rarity (integer)
+- order_by (id, name, weapon_type, rarity, attack_raw, affinity, element)
+
+Example
+- /api/v1/mhw/weapons/?weapon_type=Long%20Sword&min_rarity=6&max_rarity=8
+- /api/v1/mhw/weapons/?element=Fire&order_by=-attack_raw
+
+--------------------------------------------------
+7.4 Get Weapons (Paged)
+--------------------------------------------------
+
+GET /api/v1/mhw/weapons/paged/
+
+Pagination Parameters
+- limit (default: 50)
+- offset (default: 0)
+
+--------------------------------------------------
+7.5 Get Weapon Detail
+--------------------------------------------------
+
+GET /api/v1/mhw/weapons/{id}
 
 ==================================================
 8. API Contract Rules
@@ -242,26 +246,23 @@ This document is an API contract.
 ==================================================
 
 Q: Monsters list is empty?
-A: Import was skipped. Run the import command with --reset.
+A: Monster import was skipped. Run import_mhw with --reset.
 
-Q: Migration failed after model changes?
-A: Local dev fix:
-- python manage.py flush
-- python manage.py migrate
-- python manage.py import_mhw --reset
+Q: Weapons list is empty?
+A: Weapon import was skipped. Run import_weapons with --reset.
 
-Q: Why multiple weaknesses for same element?
-A: Different conditions represent different gameplay mechanics.
+Q: Why are some fields null?
+A: Some weapons or monsters do not have element or conditional data.
 
 ==================================================
 10. Future Extensions
 ==================================================
 
-- Weapons
 - Armor
+- Armor Sets
 - Skills
 - Decorations
-- Build sharing
+- Build saving and sharing
 
 ==================================================
 11. Contact
