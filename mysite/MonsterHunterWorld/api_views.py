@@ -1,10 +1,18 @@
 from rest_framework import generics
 from rest_framework.pagination import LimitOffsetPagination
 
-from .models import Monster
-from .serializers import MonsterListSerializer, MonsterDetailSerializer
+from .models import Monster, Weapon
+from .serializers import (
+    MonsterListSerializer,
+    MonsterDetailSerializer,
+    WeaponListSerializer,
+    WeaponDetailSerializer,
+)
 
 
+# ==================================================
+# Monsters
+# ==================================================
 class MonsterListView(generics.ListAPIView):
     """
     GET /api/v1/mhw/monsters/
@@ -63,6 +71,7 @@ class MonsterListView(generics.ListAPIView):
                 except ValueError:
                     pass
 
+            # Required because weakness join can create duplicates
             queryset = queryset.distinct()
 
         # --------------------------------------------------
@@ -115,4 +124,139 @@ class MonsterDetailView(generics.RetrieveAPIView):
     """
     queryset = Monster.objects.all()
     serializer_class = MonsterDetailSerializer
+    lookup_field = "id"
+
+
+# ==================================================
+# Weapons
+# ==================================================
+class WeaponListView(generics.ListAPIView):
+    """
+    GET /api/v1/mhw/weapons/
+
+    Minimal MVP query parameters:
+    - type (string) or weapon_type (string): exact match
+    - element (string): case-insensitive match (e.g., Fire)
+    - rarity (int): exact match
+    - min_rarity (int)
+    - max_rarity (int)
+    - min_attack (int): compares against attack_raw
+    - order_by (string): allowed fields only, supports "-" prefix
+    """
+
+    serializer_class = WeaponListSerializer
+
+    ALLOWED_ORDER_FIELDS = {
+        "id",
+        "name",
+        "weapon_type",
+        "rarity",
+        "attack_raw",
+        "affinity",
+        "element",
+    }
+
+    def get_queryset(self):
+        queryset = Weapon.objects.all()
+        params = self.request.query_params
+
+        # --------------------------------------------------
+        # Filter: weapon type (support both "type" and "weapon_type")
+        # --------------------------------------------------
+        weapon_type = params.get("type") or params.get("weapon_type")
+        if weapon_type:
+            queryset = queryset.filter(weapon_type=weapon_type.strip())
+
+        # --------------------------------------------------
+        # Filter: element (case-insensitive)
+        # --------------------------------------------------
+        element = params.get("element")
+        if element:
+            queryset = queryset.filter(element__iexact=element.strip())
+
+        # --------------------------------------------------
+        # Filter: rarity (exact match)
+        # --------------------------------------------------
+        rarity = params.get("rarity")
+        if rarity is not None:
+            try:
+                queryset = queryset.filter(rarity=int(rarity))
+            except ValueError:
+                pass
+
+        # --------------------------------------------------
+        # Filter: rarity range (min/max)
+        # --------------------------------------------------
+        min_rarity = params.get("min_rarity")
+        if min_rarity is not None:
+            try:
+                queryset = queryset.filter(rarity__gte=int(min_rarity))
+            except ValueError:
+                pass
+
+        max_rarity = params.get("max_rarity")
+        if max_rarity is not None:
+            try:
+                queryset = queryset.filter(rarity__lte=int(max_rarity))
+            except ValueError:
+                pass
+
+        # --------------------------------------------------
+        # Filter: min_attack (attack_raw >= N)
+        # --------------------------------------------------
+        min_attack = params.get("min_attack")
+        if min_attack is not None:
+            try:
+                queryset = queryset.filter(attack_raw__gte=int(min_attack))
+            except ValueError:
+                pass
+
+        # --------------------------------------------------
+        # Ordering (validated whitelist)
+        # --------------------------------------------------
+        order_by = params.get("order_by")
+        if order_by:
+            field = order_by.lstrip("-")
+            if field in self.ALLOWED_ORDER_FIELDS:
+                queryset = queryset.order_by(order_by)
+            else:
+                queryset = queryset.order_by("id")
+        else:
+            queryset = queryset.order_by("id")
+
+        return queryset
+
+
+class WeaponLimitOffsetPagination(LimitOffsetPagination):
+    """
+    Pagination settings for /weapons/paged/
+
+    default_limit: items returned when limit is not specified
+    max_limit: cap to prevent huge responses
+    """
+    default_limit = 50
+    max_limit = 200
+
+
+class WeaponListPagedView(WeaponListView):
+    """
+    GET /api/v1/mhw/weapons/paged/
+
+    Same filters/order_by as /weapons/ but returns a paginated response:
+    {
+      "count": ...,
+      "next": "...",
+      "previous": "...",
+      "results": [...]
+    }
+    """
+    pagination_class = WeaponLimitOffsetPagination
+
+
+class WeaponDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/v1/mhw/weapons/{id}/
+    """
+    queryset = Weapon.objects.all()
+    serializer_class = WeaponDetailSerializer
     lookup_field = "id"

@@ -4,7 +4,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import Monster, MonsterWeakness
+from .models import Monster, MonsterWeakness, Weapon
 
 
 class MHWImportAndAPITests(TestCase):
@@ -27,7 +27,8 @@ class MHWImportAndAPITests(TestCase):
         This is faster than importing in setUp() for every single test method.
         """
         # Build an absolute path to the repo-tracked JSON file.
-        # manage.py is run from the project root (mysite/), so BASE_DIR is one level up.
+        # tests.py is at mysite/MonsterHunterWorld/tests.py
+        # so parent.parent is mysite/
         base_dir = Path(__file__).resolve().parent.parent  # .../mysite/
         json_path = base_dir / "data" / "mhw_monsters.json"
 
@@ -137,3 +138,152 @@ class MHWImportAndAPITests(TestCase):
         # Out-of-range should be ignored (should not 500)
         resp = self.client.get("/api/v1/mhw/monsters/?element=Fire&min_stars=999")
         self.assertEqual(resp.status_code, 200)
+
+
+# ==================================================
+# Weapons API tests (deterministic, no import file required)
+# ==================================================
+class WeaponAPITests(TestCase):
+    """
+    Weapons API tests that do NOT depend on external JSON imports.
+
+    Why this approach?
+    - Deterministic: always the same results (no dependency on mhw-db payload changes)
+    - Fast: creates only a few rows in the test DB
+    - Validates: filters, paging shape, detail endpoint behavior
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        # Create a small, predictable dataset
+        Weapon.objects.create(
+            external_id=900001,
+            name="Test Long Sword A",
+            weapon_type="Long Sword",
+            rarity=6,
+            attack_raw=660,
+            attack_display=660,
+            affinity=0,
+            element="Fire",
+        )
+
+        Weapon.objects.create(
+            external_id=900002,
+            name="Test Long Sword B",
+            weapon_type="Long Sword",
+            rarity=8,
+            attack_raw=770,
+            attack_display=770,
+            affinity=10,
+            element="Ice",
+        )
+
+        Weapon.objects.create(
+            external_id=900003,
+            name="Test Hammer A",
+            weapon_type="Hammer",
+            rarity=7,
+            attack_raw=820,
+            attack_display=820,
+            affinity=-10,
+            element=None,  # allow null element (some weapons have no element)
+        )
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_weapons_list_returns_array(self):
+        """
+        GET /api/v1/mhw/weapons/ should return a raw JSON array (list).
+        """
+        resp = self.client.get("/api/v1/mhw/weapons/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsInstance(resp.json(), list)
+        self.assertGreaterEqual(len(resp.json()), 3)
+
+    def test_weapons_paged_returns_paginated_shape(self):
+        """
+        GET /api/v1/mhw/weapons/paged/ should return {count,next,previous,results}.
+        """
+        resp = self.client.get("/api/v1/mhw/weapons/paged/?limit=2&offset=0")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertIsInstance(data, dict)
+        self.assertIn("count", data)
+        self.assertIn("results", data)
+        self.assertIsInstance(data["results"], list)
+        self.assertLessEqual(len(data["results"]), 2)
+
+    def test_weapons_filter_by_weapon_type(self):
+        """
+        weapon_type filter should return only matching type (exact match).
+        """
+        resp = self.client.get("/api/v1/mhw/weapons/?weapon_type=Long%20Sword")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertIsInstance(data, list)
+        self.assertGreaterEqual(len(data), 2)
+
+        for w in data:
+            self.assertEqual(w["weapon_type"], "Long Sword")
+
+    def test_weapons_filter_by_element_case_insensitive(self):
+        """
+        element filter should be case-insensitive (iexact).
+        """
+        resp = self.client.get("/api/v1/mhw/weapons/?element=fire")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertIsInstance(data, list)
+        self.assertGreaterEqual(len(data), 1)
+
+        for w in data:
+            self.assertIsNotNone(w.get("element"))
+            self.assertEqual(w["element"].lower(), "fire")
+
+    def test_weapons_filter_by_rarity_range(self):
+        """
+        min_rarity/max_rarity should filter a range.
+        """
+        resp = self.client.get("/api/v1/mhw/weapons/?min_rarity=7&max_rarity=8")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertIsInstance(data, list)
+        self.assertGreaterEqual(len(data), 2)
+
+        for w in data:
+            self.assertGreaterEqual(int(w["rarity"]), 7)
+            self.assertLessEqual(int(w["rarity"]), 8)
+
+    def test_weapons_order_by_attack_raw_desc(self):
+        """
+        order_by should work on allowed fields, including -attack_raw.
+        """
+        resp = self.client.get("/api/v1/mhw/weapons/?order_by=-attack_raw")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertIsInstance(data, list)
+        self.assertGreaterEqual(len(data), 3)
+
+        attacks = [int(w["attack_raw"]) for w in data[:3]]
+        self.assertTrue(attacks[0] >= attacks[1] >= attacks[2])
+
+    def test_weapons_detail_endpoint(self):
+        """
+        GET /api/v1/mhw/weapons/{id}/ should return one weapon with expected fields.
+        """
+        weapon = Weapon.objects.get(external_id=900001)
+        resp = self.client.get(f"/api/v1/mhw/weapons/{weapon.id}/")
+        self.assertEqual(resp.status_code, 200)
+
+        data = resp.json()
+        self.assertEqual(data["id"], weapon.id)
+        self.assertEqual(data["external_id"], 900001)
+        self.assertEqual(data["name"], "Test Long Sword A")
+        self.assertEqual(data["weapon_type"], "Long Sword")
+        self.assertEqual(int(data["rarity"]), 6)
