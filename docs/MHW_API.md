@@ -139,14 +139,39 @@ Interpretation
 - Only "element" weaknesses should be used for weapon-element matching
 
 ==================================================
-4. API Endpoints
+4. API Documentation (OpenAPI / Swagger)
+==================================================
+
+This backend provides an auto-generated OpenAPI schema and interactive API
+documentation to assist frontend development and API exploration.
+
+Available Endpoints
+
+- OpenAPI Schema (JSON):
+  http://127.0.0.1:8000/api/schema/
+
+- Swagger UI (interactive documentation):
+  http://127.0.0.1:8000/api/docs/
+
+- Redoc (read-only documentation):
+  http://127.0.0.1:8000/api/redoc/
+
+Notes
+- Accessing /api/schema/ may display raw JSON or trigger a file download.
+  This behavior is expected.
+- Swagger UI (/api/docs/) is recommended for local development and testing.
+- These documentation endpoints are generated directly from the backend
+  configuration and always reflect the current API behavior.
+
+==================================================
+5. API Endpoints
 ==================================================
 
 Base URL
 /api/v1/mhw/
 
 --------------------------------------------------
-4.1 Get All Monsters
+5.1 Get All Monsters
 --------------------------------------------------
 
 GET /api/v1/mhw/monsters/
@@ -183,45 +208,29 @@ Optional Query Parameters
 
 - is_elder_dragon (boolean)
   Filters monsters by Elder Dragon status.
-  Example:
-  /api/v1/mhw/monsters/?is_elder_dragon=true
 
 - element (string)
   Filters monsters that have a matching elemental weakness.
   Only weaknesses with kind="element" are considered.
-  Example:
-  /api/v1/mhw/monsters/?element=Fire
 
 - min_stars (integer, 1–3)
   Filters by minimum weakness stars.
   Requires element parameter.
-  Example:
-  /api/v1/mhw/monsters/?element=Fire&min_stars=2
 
-- min_stars is only applied when element is provided.
-
-- Invalid or out-of-range query parameter values are ignored and do not produce errors.
+- Invalid or out-of-range values are ignored.
 
 --------------------------------------------------
-4.1.1 Get All Monsters (Paged)
+5.1.1 Get All Monsters (Paged)
 --------------------------------------------------
 
 GET /api/v1/mhw/monsters/paged/
 
 Returns the same monster list as /monsters/ but with pagination.
 
-This endpoint exists to support large result sets without breaking the v1
-response format of /monsters/.
+Pagination Parameters
 
-Pagination Parameters (Limit / Offset)
-
-- limit (integer)
-  Number of results to return.
-  Default: 50
-
-- offset (integer)
-  Starting index for results.
-  Default: 0
+- limit (integer, default: 50)
+- offset (integer, default: 0)
 
 Response Format
 
@@ -232,15 +241,8 @@ Response Format
   "results": [ <monster>, ... ]
 }
 
-Example
-
-- curl "http://127.0.0.1:8000/api/v1/mhw/monsters/paged/?limit=5&offset=0"
-
-All filtering and ordering parameters supported by /monsters/ are also supported
-by this endpoint.
-
 --------------------------------------------------
-4.2 Get Monster Detail
+5.2 Get Monster Detail
 --------------------------------------------------
 
 GET /api/v1/mhw/monsters/{id}/
@@ -248,106 +250,8 @@ GET /api/v1/mhw/monsters/{id}/
 Important
 - {id} refers to the internal database ID (Monster.id)
 - NOT the mhw-db external_id
-- Always retrieve the id from the monster list endpoint first
 
 Returns a single monster with its weaknesses.
-
-Response Example
-
-{
-  "id": 1,
-  "external_id": 1,
-  "name": "Rathalos",
-  "monster_type": "Flying Wyvern",
-  "is_elder_dragon": false,
-  "weaknesses": [
-    {
-      "kind": "element",
-      "name": "Dragon",
-      "stars": 3,
-      "condition": null
-    },
-    {
-      "kind": "element",
-      "name": "Thunder",
-      "stars": 2,
-      "condition": null
-    },
-    {
-      "kind": "ailment",
-      "name": "Poison",
-      "stars": 1,
-      "condition": null
-    }
-  ]
-}
-
---------------------------------------------------
-4.2.1 Quick Test (Local)
---------------------------------------------------
-
-Start server
-- python manage.py runserver
-
-Get monster list
-- curl http://127.0.0.1:8000/api/v1/mhw/monsters/
-
-Get monster list (paged)
-- curl http://127.0.0.1:8000/api/v1/mhw/monsters/paged/?limit=5&offset=0
-
-Get monster detail (example: id = 5)
-- curl http://127.0.0.1:8000/api/v1/mhw/monsters/5/
-
-Expected Results
-- Monster list returns many monsters
-- Paged list returns count, next/previous, and results
-- Monster detail returns a weaknesses array
-
-If only a few monsters appear:
-- Re-run the import command with --reset
-
---------------------------------------------------
-4.2.2 Testing Dataset (Optional)
---------------------------------------------------
-
-A small test dataset is included for development purposes only.
-
-- python manage.py import_mhw --monsters test_monsters.json
-
-Warning
-- test_monsters.json contains only a small subset of monsters
-- Using this file will result in limited API data
-- Do NOT use for frontend or recommendation development
-
-==================================================
-4.3 Error Responses
-==================================================
-
-404 Not Found
-
-Returned when the requested resource does not exist.
-
-Example
-
-{
-  "error": "Monster not found"
-}
-
-==================================================
-5. Usage Notes
-==================================================
-
-For Frontend Team
-- Use name for display purposes
-- Convert stars into visual indicators (e.g. star icons)
-- Elder Dragons can be highlighted using is_elder_dragon
-- Do not derive game logic from display values
-
-For Recommendation Algorithm Team
-- Use element-type weaknesses only
-- Higher stars should be treated as higher weight
-- Monsters may have multiple effective elements
-- Do not hardcode element effectiveness outside the API
 
 ==================================================
 6. API Contract Rules
@@ -355,12 +259,8 @@ For Recommendation Algorithm Team
 
 This document is an API contract.
 
-- Any API changes must update this document
-- Breaking changes require version updates (e.g. v2)
-
-External ID Policy
-- external_id is an integer (mhw-db numeric ID)
-- Human-readable identifiers will be added as new fields if needed
+- Any API changes must update this document.
+- Breaking changes require version updates (e.g. v2).
 
 ==================================================
 7. Future Extensions (Planned)
