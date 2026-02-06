@@ -1,8 +1,11 @@
 from rest_framework import serializers
 
-from MonsterHunterWorld.models import Monster, MonsterWeakness, Weapon
+from MonsterHunterWorld.models import Monster, MonsterWeakness, Weapon, Skill
 
 
+# ==================================================
+# Monsters
+# ==================================================
 class MonsterWeaknessSerializer(serializers.ModelSerializer):
     """
     Serializer for a monster weakness entry.
@@ -45,6 +48,9 @@ class MonsterDetailSerializer(serializers.ModelSerializer):
         ]
 
 
+# ==================================================
+# Weapons
+# ==================================================
 class WeaponListSerializer(serializers.ModelSerializer):
     """
     Weapon list serializer (MVP).
@@ -69,10 +75,6 @@ class WeaponListSerializer(serializers.ModelSerializer):
 class WeaponDetailSerializer(serializers.ModelSerializer):
     """
     Weapon detail serializer (MVP).
-
-    Note:
-    - For MVP, list/detail share the same fields.
-    - Later we can expand detail with crafting, slots, durability, etc.
     """
     class Meta:
         model = Weapon
@@ -88,4 +90,38 @@ class WeaponDetailSerializer(serializers.ModelSerializer):
             "element_damage",
             "affinity",
             "elderseal",
+        ]
+
+
+# ==================================================
+# Skills
+# ==================================================
+class SkillListSerializer(serializers.ModelSerializer):
+    """
+    Skill list serializer (MVP).
+    Must include description because tests expect it.
+    """
+    class Meta:
+        model = Skill
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "description",
+            "max_level",
+        ]
+
+
+class SkillDetailSerializer(serializers.ModelSerializer):
+    """
+    Skill detail serializer (MVP).
+    """
+    class Meta:
+        model = Skill
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "description",
+            "max_level",
         ]
