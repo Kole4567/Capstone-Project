@@ -46,6 +46,56 @@ directly in the repository.
 Team members do NOT need to download data from external websites.
 
 --------------------------------------------------
+2.2 Import Pipeline – Stability & Design Notes
+--------------------------------------------------
+
+The import pipeline is intentionally designed to be resilient against
+real-world data inconsistencies found in external sources such as mhw-db.
+
+This section documents the design decisions behind the import command,
+so that team members understand why the implementation is defensive
+and slightly more complex than a naive JSON import.
+
+Design Goals
+- The import process must never fail entirely due to a single malformed record.
+- Partial or missing fields in the source data should be tolerated whenever possible.
+- Re-importing data should always result in a clean and consistent database state.
+- The internal database must remain the single source of truth.
+
+Key Design Decisions
+- Defensive parsing is used throughout the import command:
+  - All dictionary access is guarded using .get() or safe helper functions.
+  - Unexpected data types (null, dict instead of list, malformed entries) are skipped safely.
+- The import command detects the input format heuristically:
+  - mhw-db style data (element-based weaknesses)
+  - Custom or test formats used during development
+- Weakness data is always fully replaced per monster on each import:
+  - Existing weaknesses are deleted
+  - Normalized weaknesses are re-inserted
+  - This avoids stale or duplicated weakness records
+
+Reset Behavior
+- The --reset flag deletes existing data in a safe order:
+  - MonsterWeakness records are deleted before Monster records
+- Reset and import operations are wrapped in a single database transaction
+  to prevent partially deleted or partially imported states.
+
+Safety & Testing Options
+- --dry-run option parses and validates input data without writing to the database
+- --limit option allows importing only a subset of monsters for quick testing
+- These options are intended for development and debugging only
+
+Current Status
+- Monster import: stable
+- Weakness import: stable (replace strategy)
+- Input format tolerance: high
+
+Future Work
+- Import performance optimizations (bulk operations)
+- Schema-level constraints and indexing
+- Additional data domains (weapons, armor, skills)
+
+--------------------------------------------------
 Step 1. Environment Setup
 --------------------------------------------------
 
@@ -64,13 +114,17 @@ Import the full monster dataset into the local database.
 
 - python manage.py import_mhw --monsters data/mhw_monsters.json --reset
 
+Optional (development only):
+- python manage.py import_mhw --monsters data/mhw_monsters.json --dry-run --limit 10
+
 This command:
-- Clears existing monster data
+- Clears existing monster data (when --reset is used)
 - Imports all monsters and their weaknesses
 - Ensures a consistent dataset across all team members
 
 Warning:
 - The --reset flag is required to avoid leftover test or partial data.
+- --dry-run and --limit should only be used for local testing and debugging.
 
 --------------------------------------------------
 Step 3. Run the Server
@@ -100,13 +154,14 @@ Represents a huntable monster.
 
 Fields
 - id (integer): Internal database ID
-- external_id (integer): ID from mhw-db.com
+- external_id (integer): Stable ID sourced from mhw-db.com (unique, non-null)
 - name (string): Monster name
 - monster_type (string): Classification (Flying Wyvern, Elder Dragon, etc.)
 - is_elder_dragon (boolean)
 
 Notes
-- external_id is sourced from mhw-db.com and treated as stable within this project.
+- external_id is treated as a required, unique identifier for reliable re-imports.
+- The internal id field should be used for API routing.
 
 --------------------------------------------------
 3.2 Element
@@ -135,7 +190,8 @@ Fields
 
 Interpretation
 - Higher stars = higher effectiveness
-- stars range is guaranteed to be between 1 and 3
+- stars are guaranteed to be within the 1–3 range
+- Weakness records with invalid or unknown star values are not stored
 - Only "element" weaknesses should be used for weapon-element matching
 
 ==================================================
