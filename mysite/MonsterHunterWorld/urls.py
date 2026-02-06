@@ -1,14 +1,26 @@
 from django.urls import path
 
 from .api_views import (
+    # ==================================================
     # Monsters
+    # ==================================================
     MonsterListView,
     MonsterListPagedView,
     MonsterDetailView,
+
+    # ==================================================
     # Weapons
+    # ==================================================
     WeaponListView,
     WeaponListPagedView,
     WeaponDetailView,
+
+    # ==================================================
+    # Skills
+    # ==================================================
+    SkillListView,
+    SkillListPagedView,
+    SkillDetailView,
 )
 
 urlpatterns = [
@@ -48,5 +60,24 @@ urlpatterns = [
         "api/v1/mhw/weapons/<int:id>/",
         WeaponDetailView.as_view(),
         name="mhw-weapon-detail",
+    ),
+
+    # ==================================================
+    # Skills
+    # ==================================================
+    path(
+        "api/v1/mhw/skills/",
+        SkillListView.as_view(),
+        name="mhw-skill-list",
+    ),
+    path(
+        "api/v1/mhw/skills/paged/",
+        SkillListPagedView.as_view(),
+        name="mhw-skill-list-paged",
+    ),
+    path(
+        "api/v1/mhw/skills/<int:id>/",
+        SkillDetailView.as_view(),
+        name="mhw-skill-detail",
     ),
 ]

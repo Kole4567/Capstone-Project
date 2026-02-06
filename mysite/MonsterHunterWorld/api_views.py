@@ -1,12 +1,14 @@
 from rest_framework import generics
 from rest_framework.pagination import LimitOffsetPagination
 
-from .models import Monster, Weapon
+from .models import Monster, Weapon, Skill
 from .serializers import (
     MonsterListSerializer,
     MonsterDetailSerializer,
     WeaponListSerializer,
     WeaponDetailSerializer,
+    SkillListSerializer,
+    SkillDetailSerializer,
 )
 
 
@@ -259,4 +261,83 @@ class WeaponDetailView(generics.RetrieveAPIView):
     """
     queryset = Weapon.objects.all()
     serializer_class = WeaponDetailSerializer
+    lookup_field = "id"
+
+
+# ==================================================
+# Skills
+# ==================================================
+class SkillListView(generics.ListAPIView):
+    """
+    GET /api/v1/mhw/skills/
+
+    Minimal MVP query parameters:
+    - name (string): case-insensitive contains (icontains)
+    - min_level (int): max_level >= N
+    - order_by (string): allowed fields only, supports "-" prefix
+    """
+
+    serializer_class = SkillListSerializer
+
+    ALLOWED_ORDER_FIELDS = {
+        "id",
+        "name",
+        "max_level",
+    }
+
+    def get_queryset(self):
+        queryset = Skill.objects.all()
+        params = self.request.query_params
+
+        # --------------------------------------------------
+        # Filter: name contains (case-insensitive)
+        # --------------------------------------------------
+        name = params.get("name")
+        if name:
+            queryset = queryset.filter(name__icontains=name.strip())
+
+        # --------------------------------------------------
+        # Filter: min_level (max_level >= N)
+        # --------------------------------------------------
+        min_level = params.get("min_level")
+        if min_level is not None:
+            try:
+                queryset = queryset.filter(max_level__gte=int(min_level))
+            except ValueError:
+                pass
+
+        # --------------------------------------------------
+        # Ordering (validated whitelist)
+        # --------------------------------------------------
+        order_by = params.get("order_by")
+        if order_by:
+            field = order_by.lstrip("-")
+            if field in self.ALLOWED_ORDER_FIELDS:
+                queryset = queryset.order_by(order_by)
+            else:
+                queryset = queryset.order_by("id")
+        else:
+            queryset = queryset.order_by("id")
+
+        return queryset
+
+
+class SkillLimitOffsetPagination(LimitOffsetPagination):
+    default_limit = 50
+    max_limit = 200
+
+
+class SkillListPagedView(SkillListView):
+    """
+    GET /api/v1/mhw/skills/paged/
+    """
+    pagination_class = SkillLimitOffsetPagination
+
+
+class SkillDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/v1/mhw/skills/{id}/
+    """
+    queryset = Skill.objects.all()
+    serializer_class = SkillDetailSerializer
     lookup_field = "id"

@@ -119,3 +119,46 @@ class Weapon(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.weapon_type})"
+
+
+class Skill(models.Model):
+    """
+    Skill model (MHW Skills MVP).
+
+    Design goals
+    - Keep the schema minimal but useful for API list/detail and future build logic.
+    - external_id is required + unique to support safe re-imports (upsert-like behavior).
+    - Store the maximum level so frontend/build logic can reason about valid ranges.
+    - Description can be long (skill text), so use TextField.
+
+    Notes about mhw-db
+    - Skills typically include:
+      id, name, description, ranks (each rank has level, description, modifiers, etc.)
+    - MVP stores:
+      * max_level derived from ranks
+      * description as the base skill description (plus ranks later if needed)
+    """
+
+    # Stable ID from external data source (mhw-db)
+    external_id = models.IntegerField(unique=True)
+
+    # Skill name (e.g., "Attack Boost")
+    name = models.CharField(max_length=200)
+
+    # High-level description (skill summary)
+    description = models.TextField(blank=True, default="")
+
+    # Max level derived from ranks (e.g., 7 for Attack Boost)
+    max_level = models.PositiveSmallIntegerField(default=1)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["name"], name="idx_skill_name"),
+            models.Index(fields=["max_level"], name="idx_skill_max_level"),
+        ]
+
+    def __str__(self):
+        return f"{self.name} (Lv {self.max_level})"

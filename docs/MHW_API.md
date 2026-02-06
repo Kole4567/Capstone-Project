@@ -9,7 +9,7 @@ API Version: v1
 This document describes the Monster Hunter World (MHW) Backend API.
 
 The purpose of this API is to provide structured Monster Hunter World game data
-(monsters, weaknesses, weapons, etc.) from our internal database for:
+(monsters, weaknesses, weapons, skills, etc.) from our internal database for:
 
 - Frontend UI rendering
 - Build recommendation algorithms
@@ -78,20 +78,30 @@ Optional (development only):
 - python manage.py import_weapons --weapons data/mhw_weapons.json --dry-run --limit 10
 
 --------------------------------------------------
-Step 5. Run Server
+Step 5. Import Skill Data (Required)
+--------------------------------------------------
+
+- python manage.py import_skills --skills data/mhw_skills.json --reset
+
+Optional (development only):
+- python manage.py import_skills --skills data/mhw_skills.json --dry-run --limit 10
+
+--------------------------------------------------
+Step 6. Run Server
 --------------------------------------------------
 
 - python manage.py runserver
 
 --------------------------------------------------
-Step 6. Verify API Endpoints
+Step 7. Verify API Endpoints
 --------------------------------------------------
 
 - GET /api/v1/mhw/monsters/
 - GET /api/v1/mhw/weapons/
+- GET /api/v1/mhw/skills/
 
 --------------------------------------------------
-Step 7. Run Backend Tests (Recommended)
+Step 8. Run Backend Tests (Recommended)
 --------------------------------------------------
 
 - python manage.py test MonsterHunterWorld
@@ -147,17 +157,38 @@ Fields
 - id (integer): Internal database ID
 - external_id (integer): mhw-db weapon ID
 - name (string)
-- weapon_type (string): Great Sword, Long Sword, Bow, etc.
+- weapon_type (string)
 - rarity (integer)
 - attack_raw (integer)
 - attack_display (integer)
 - affinity (integer)
 - element (string, optional)
+- element_damage (integer, optional)
+- elderseal (string, optional)
 
 Notes
 - Weapons are independent of monsters
-- Element data is used later for build calculations
 - Some weapons have no elemental damage
+- Display and raw attack are stored separately
+
+--------------------------------------------------
+5.4 Skill
+--------------------------------------------------
+
+Represents a passive skill used in builds
+(e.g., Attack Boost, Critical Eye).
+
+Fields
+- id (integer): Internal database ID
+- external_id (integer): Stable ID from mhw-db (unique)
+- name (string)
+- description (string)
+- max_level (integer)
+
+Notes
+- max_level is derived from mhw-db ranks data
+- MVP stores only high-level description and max level
+- Per-rank modifiers may be added later
 
 ==================================================
 6. API Documentation (Swagger / OpenAPI)
@@ -206,13 +237,14 @@ GET /api/v1/mhw/monsters/{id}
 GET /api/v1/mhw/weapons/
 
 Optional Query Parameters
-- weapon_type (string, exact match)
-- element (string, case-insensitive)
+- weapon_type (string)
+- element (string)
 - min_rarity (integer)
 - max_rarity (integer)
+- min_attack (integer)
 - order_by (id, name, weapon_type, rarity, attack_raw, affinity, element)
 
-Example
+Examples
 - /api/v1/mhw/weapons/?weapon_type=Long%20Sword&min_rarity=6&max_rarity=8
 - /api/v1/mhw/weapons/?element=Fire&order_by=-attack_raw
 
@@ -231,6 +263,37 @@ Pagination Parameters
 --------------------------------------------------
 
 GET /api/v1/mhw/weapons/{id}
+
+--------------------------------------------------
+7.6 Get All Skills
+--------------------------------------------------
+
+GET /api/v1/mhw/skills/
+
+Optional Query Parameters
+- name (string): case-insensitive contains filter
+- min_level (integer): max_level >= N
+- order_by (id, name, max_level)
+
+Examples
+- /api/v1/mhw/skills/?name=attack
+- /api/v1/mhw/skills/?min_level=7&order_by=name
+
+--------------------------------------------------
+7.7 Get Skills (Paged)
+--------------------------------------------------
+
+GET /api/v1/mhw/skills/paged/
+
+Pagination Parameters
+- limit (default: 50)
+- offset (default: 0)
+
+--------------------------------------------------
+7.8 Get Skill Detail
+--------------------------------------------------
+
+GET /api/v1/mhw/skills/{id}
 
 ==================================================
 8. API Contract Rules
@@ -251,8 +314,11 @@ A: Monster import was skipped. Run import_mhw with --reset.
 Q: Weapons list is empty?
 A: Weapon import was skipped. Run import_weapons with --reset.
 
+Q: Skills list is empty?
+A: Skill import was skipped. Run import_skills with --reset.
+
 Q: Why are some fields null?
-A: Some weapons or monsters do not have element or conditional data.
+A: Some entities do not have elemental or conditional data.
 
 ==================================================
 10. Future Extensions
@@ -260,9 +326,9 @@ A: Some weapons or monsters do not have element or conditional data.
 
 - Armor
 - Armor Sets
-- Skills
 - Decorations
 - Build saving and sharing
+- Skill rank modifiers
 
 ==================================================
 11. Contact
