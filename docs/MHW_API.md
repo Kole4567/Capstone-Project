@@ -9,13 +9,14 @@ API Version: v1
 This document describes the Monster Hunter World (MHW) Backend API.
 
 The purpose of this API is to provide structured Monster Hunter World game data
-(monsters, weaknesses, weapons, skills, etc.) from our internal database for:
+(monsters, weaknesses, weapons, skills, armors, etc.) from our internal database
+for:
 
 - Frontend UI rendering
 - Build recommendation algorithms
 - Custom build creation and sharing
 
-This API acts as the single source of truth for game data within this project.
+This API acts as the single source of truth for all game data used in this project.
 
 ==================================================
 2. Data Source
@@ -25,10 +26,10 @@ All Monster Hunter World game data is originally sourced from:
 
 https://docs.mhw-db.com/
 
-The backend imports and stores this data into our own database.
+The backend imports and stores this data into its own database.
 
-Important
-- Frontend and recommendation logic must NOT call mhw-db.com directly.
+Important:
+- Frontend and recommendation logic MUST NOT call mhw-db.com directly.
 - Always use the internal API endpoints described in this document.
 - This ensures stability, performance, and consistent data formatting.
 
@@ -55,53 +56,76 @@ Step 2. Database Initialization
 
 - python manage.py migrate
 
-Optional (only if schema changes cause conflicts during development):
+Optional (local development only, if schema conflicts occur):
 - python manage.py flush
-  - Type "yes" to confirm (local DB only)
+  - Type "yes" to confirm
 
 --------------------------------------------------
-Step 3. Import Monster Data (Required)
+Step 3. Import Monster Data
 --------------------------------------------------
 
+Required (first-time setup only):
 - python manage.py import_mhw --monsters data/mhw_monsters.json --reset
 
-Optional (development only):
+Optional (development / verification):
 - python manage.py import_mhw --monsters data/mhw_monsters.json --dry-run --limit 10
+- python manage.py import_mhw --monsters data/mhw_monsters.json --limit 10
+
+Notes:
+- --reset should only be used for first-time setup or full reinitialization.
+- Re-running the import without --reset is safe and idempotent.
 
 --------------------------------------------------
-Step 4. Import Weapon Data (Required)
+Step 4. Import Weapon Data
 --------------------------------------------------
 
+Required (first-time setup only):
 - python manage.py import_weapons --weapons data/mhw_weapons.json --reset
 
-Optional (development only):
+Optional (development / verification):
 - python manage.py import_weapons --weapons data/mhw_weapons.json --dry-run --limit 10
 
 --------------------------------------------------
-Step 5. Import Skill Data (Required)
+Step 5. Import Skill Data
 --------------------------------------------------
 
+Required (first-time setup only):
 - python manage.py import_skills --skills data/mhw_skills.json --reset
 
-Optional (development only):
+Optional (development / verification):
 - python manage.py import_skills --skills data/mhw_skills.json --dry-run --limit 10
 
 --------------------------------------------------
-Step 6. Run Server
+Step 6. Import Armor Data
+--------------------------------------------------
+
+Required (first-time setup only):
+- python manage.py import_armors --armors data/mhw_armors.json --reset
+
+Optional (development / verification):
+- python manage.py import_armors --armors data/mhw_armors.json --dry-run --limit 10
+
+Notes:
+- Armor import is idempotent.
+- ArmorSkill join rows are rebuilt per armor to ensure consistency.
+
+--------------------------------------------------
+Step 7. Run Server
 --------------------------------------------------
 
 - python manage.py runserver
 
 --------------------------------------------------
-Step 7. Verify API Endpoints
+Step 8. Verify API Endpoints
 --------------------------------------------------
 
 - GET /api/v1/mhw/monsters/
 - GET /api/v1/mhw/weapons/
 - GET /api/v1/mhw/skills/
+- GET /api/v1/mhw/armors/
 
 --------------------------------------------------
-Step 8. Run Backend Tests (Recommended)
+Step 9. Run Backend Tests (Recommended)
 --------------------------------------------------
 
 - python manage.py test MonsterHunterWorld
@@ -112,11 +136,17 @@ Step 8. Run Backend Tests (Recommended)
 
 The import pipeline is intentionally defensive to handle real-world data issues.
 
-Design Goals
+Design Goals:
 - One bad record must not crash the entire import
-- Partial data should be tolerated when possible
-- Re-import must always result in a clean database
-- Internal DB is the single source of truth
+- Duplicate data must never cause UNIQUE constraint failures
+- Re-importing data must be safe and idempotent
+- Internal database is the single source of truth
+
+Key Design Decisions:
+- Per-entity transaction isolation
+- In-memory deduplication before database insertion
+- Deduplication uses the same unique keys as the database schema
+- Child records (weaknesses, armor skills) are replaced per parent entity
 
 ==================================================
 5. Core Data Models (Conceptual)
@@ -126,7 +156,7 @@ Design Goals
 5.1 Monster
 --------------------------------------------------
 
-Fields
+Fields:
 - id (integer): Internal database ID
 - external_id (integer): Stable ID from mhw-db (unique)
 - name (string)
@@ -137,25 +167,25 @@ Fields
 5.2 MonsterWeakness
 --------------------------------------------------
 
-Fields
+Fields:
 - kind (string): "element" or "ailment"
 - name (string)
-- stars (integer, 1–3)
+- stars (integer): positive integer (typically 1–3)
 - condition (string, optional)
+- condition_key (string): normalized key derived from condition
 
-Notes
-- Multiple weaknesses may exist for the same element with different conditions
-- Stars are constrained at the database level (1–3 only)
+Notes:
+- Multiple weaknesses may exist for the same element under different conditions
+- Uniqueness is enforced on:
+  (monster, kind, name, condition_key)
 
 --------------------------------------------------
 5.3 Weapon
 --------------------------------------------------
 
-Represents a craftable weapon.
-
-Fields
-- id (integer): Internal database ID
-- external_id (integer): mhw-db weapon ID
+Fields:
+- id (integer)
+- external_id (integer, unique)
 - name (string)
 - weapon_type (string)
 - rarity (integer)
@@ -166,29 +196,50 @@ Fields
 - element_damage (integer, optional)
 - elderseal (string, optional)
 
-Notes
-- Weapons are independent of monsters
-- Some weapons have no elemental damage
-- Display and raw attack are stored separately
-
 --------------------------------------------------
 5.4 Skill
 --------------------------------------------------
 
-Represents a passive skill used in builds
-(e.g., Attack Boost, Critical Eye).
-
-Fields
-- id (integer): Internal database ID
-- external_id (integer): Stable ID from mhw-db (unique)
+Fields:
+- id (integer)
+- external_id (integer, unique)
 - name (string)
 - description (string)
 - max_level (integer)
 
-Notes
-- max_level is derived from mhw-db ranks data
-- MVP stores only high-level description and max level
-- Per-rank modifiers may be added later
+--------------------------------------------------
+5.5 Armor
+--------------------------------------------------
+
+Represents a single armor piece (not a full set).
+
+Fields:
+- id (integer)
+- external_id (integer, unique)
+- name (string)
+- armor_type (string): head, chest, arms, waist, legs
+- rarity (integer)
+- defense_base (integer)
+- defense_max (integer)
+- defense_augmented (integer)
+- slot_1 (integer)
+- slot_2 (integer)
+- slot_3 (integer)
+
+--------------------------------------------------
+5.6 ArmorSkill
+--------------------------------------------------
+
+Join table between Armor and Skill.
+
+Fields:
+- armor (FK → Armor)
+- skill (FK → Skill)
+- level (integer)
+
+Notes:
+- Represents skill levels granted by a specific armor piece
+- Armor detail endpoints expose this as nested data
 
 ==================================================
 6. API Documentation (Swagger / OpenAPI)
@@ -213,87 +264,42 @@ Base URL:
 /api/v1/mhw/
 
 --------------------------------------------------
-7.1 Get All Monsters
+7.1 Monsters
 --------------------------------------------------
 
-GET /api/v1/mhw/monsters/
-
-Optional Query Parameters
-- is_elder_dragon (boolean)
-- element (string)
-- min_stars (integer, 1–3)
-- order_by (id, name, monster_type, is_elder_dragon)
+GET /monsters/
+GET /monsters/paged/
+GET /monsters/{id}/
 
 --------------------------------------------------
-7.2 Get Monster Detail
+7.2 Weapons
 --------------------------------------------------
 
-GET /api/v1/mhw/monsters/{id}
+GET /weapons/
+GET /weapons/paged/
+GET /weapons/{id}/
 
 --------------------------------------------------
-7.3 Get All Weapons
+7.3 Skills
 --------------------------------------------------
 
-GET /api/v1/mhw/weapons/
-
-Optional Query Parameters
-- weapon_type (string)
-- element (string)
-- min_rarity (integer)
-- max_rarity (integer)
-- min_attack (integer)
-- order_by (id, name, weapon_type, rarity, attack_raw, affinity, element)
-
-Examples
-- /api/v1/mhw/weapons/?weapon_type=Long%20Sword&min_rarity=6&max_rarity=8
-- /api/v1/mhw/weapons/?element=Fire&order_by=-attack_raw
+GET /skills/
+GET /skills/paged/
+GET /skills/{id}/
 
 --------------------------------------------------
-7.4 Get Weapons (Paged)
+7.4 Armors
 --------------------------------------------------
 
-GET /api/v1/mhw/weapons/paged/
+GET /armors/
+GET /armors/paged/
+GET /armors/{id}/
 
-Pagination Parameters
-- limit (default: 50)
-- offset (default: 0)
-
---------------------------------------------------
-7.5 Get Weapon Detail
---------------------------------------------------
-
-GET /api/v1/mhw/weapons/{id}
-
---------------------------------------------------
-7.6 Get All Skills
---------------------------------------------------
-
-GET /api/v1/mhw/skills/
-
-Optional Query Parameters
-- name (string): case-insensitive contains filter
-- min_level (integer): max_level >= N
-- order_by (id, name, max_level)
-
-Examples
-- /api/v1/mhw/skills/?name=attack
-- /api/v1/mhw/skills/?min_level=7&order_by=name
-
---------------------------------------------------
-7.7 Get Skills (Paged)
---------------------------------------------------
-
-GET /api/v1/mhw/skills/paged/
-
-Pagination Parameters
-- limit (default: 50)
-- offset (default: 0)
-
---------------------------------------------------
-7.8 Get Skill Detail
---------------------------------------------------
-
-GET /api/v1/mhw/skills/{id}
+Optional Filters:
+- armor_type
+- min_rarity / max_rarity
+- min_defense
+- has_skill (future extension)
 
 ==================================================
 8. API Contract Rules
@@ -302,33 +308,33 @@ GET /api/v1/mhw/skills/{id}
 This document is an API contract.
 
 - Any API change must update this document
-- Breaking changes require version bump (v2)
+- Breaking changes require an API version bump (v2)
 
 ==================================================
 9. FAQ
 ==================================================
 
 Q: Monsters list is empty?
-A: Monster import was skipped. Run import_mhw with --reset.
+A: Run import_mhw with --reset (first-time setup only).
 
 Q: Weapons list is empty?
-A: Weapon import was skipped. Run import_weapons with --reset.
+A: Run import_weapons with --reset.
 
 Q: Skills list is empty?
-A: Skill import was skipped. Run import_skills with --reset.
+A: Run import_skills with --reset.
 
-Q: Why are some fields null?
-A: Some entities do not have elemental or conditional data.
+Q: Armors list is empty?
+A: Run import_armors with --reset.
 
 ==================================================
 10. Future Extensions
 ==================================================
 
-- Armor
-- Armor Sets
+- Armor sets
 - Decorations
 - Build saving and sharing
 - Skill rank modifiers
+- Advanced build recommendation logic
 
 ==================================================
 11. Contact
