@@ -2,13 +2,20 @@ from django.db import models
 from django.db.models import Q
 
 
+# ==================================================
+# Monsters
+# ==================================================
 class Monster(models.Model):
     """
     Monster model (core entity).
 
-    Notes
-    - external_id is the stable identifier from the external source (mhw-db).
-    - We treat external_id as required and unique so re-imports can reliably "upsert".
+    Design notes
+    - Represents a large monster in Monster Hunter World.
+    - This is a core reference entity used across the API.
+    - external_id comes from mhw-db and is treated as stable.
+
+    Constraints
+    - external_id must be unique to allow safe re-imports (upsert behavior).
     """
 
     external_id = models.IntegerField(unique=True)
@@ -27,10 +34,19 @@ class MonsterWeakness(models.Model):
     """
     Represents a monster’s elemental or status weakness.
 
-    Notes
+    Design notes
+    - Weaknesses are attached to monsters via FK.
+    - A monster may have multiple weaknesses of the same element
+      under different conditions.
+    - stars represent effectiveness (1–3).
+
+    Special handling
     - condition is optional because mhw-db sometimes omits it.
-    - condition_key is used for stable uniqueness even when condition is NULL.
-    - stars are constrained at the DB level to the valid domain (1–3).
+    - condition_key normalizes condition for uniqueness when condition is NULL.
+
+    Example
+    - Fire (stars=3, condition=None)
+    - Ice (stars=2, condition="when enraged")
     """
 
     monster = models.ForeignKey(
@@ -39,14 +55,14 @@ class MonsterWeakness(models.Model):
         related_name="weaknesses",
     )
 
-    kind = models.CharField(max_length=40)
-    name = models.CharField(max_length=60)
+    kind = models.CharField(max_length=40)   # "element" or "ailment"
+    name = models.CharField(max_length=60)   # e.g. Fire, Poison
     stars = models.PositiveSmallIntegerField()
 
     condition = models.CharField(max_length=200, null=True, blank=True)
 
-    # A normalized key for uniqueness. Import code should set this consistently.
-    # Example: condition_key = (condition or "").strip().lower()
+    # Normalized value used only for uniqueness
+    # Import code should set this consistently
     condition_key = models.CharField(max_length=200, default="", blank=True)
 
     class Meta:
@@ -70,41 +86,36 @@ class MonsterWeakness(models.Model):
         return f"{self.monster.name} - {self.kind}:{self.name} ({self.stars})"
 
 
+# ==================================================
+# Weapons
+# ==================================================
 class Weapon(models.Model):
     """
     Weapon model (MHW Weapons MVP).
 
     Design goals
-    - Store only the fields needed for v1.1 list/detail endpoints and simple filtering.
-    - Keep the schema stable and easy to extend later (durability, slots, crafting, assets, etc.).
-    - external_id is required + unique to support safe re-imports (upsert-like behavior).
+    - Support list/detail endpoints with minimal but useful fields.
+    - Enable filtering by type, element, rarity, and attack.
+    - Keep schema easy to extend later (slots, sharpness, crafting, etc.).
+
+    Notes
+    - attack_display and attack_raw are stored separately.
+    - element is optional because many weapons are raw-only.
     """
 
-    # Stable ID from external data source (mhw-db)
     external_id = models.IntegerField(unique=True)
 
-    # Weapon name (e.g., "Buster Sword 1")
     name = models.CharField(max_length=200)
-
-    # Weapon type from mhw-db (e.g., "great-sword", "long-sword", "bow")
     weapon_type = models.CharField(max_length=50)
-
-    # Rarity (usually 1-12)
     rarity = models.PositiveSmallIntegerField()
 
-    # Attack values
-    # - attack_display: the "display" attack shown in UI (varies by weapon type)
-    # - attack_raw: the raw/base attack value from mhw-db
     attack_display = models.IntegerField(default=0)
     attack_raw = models.IntegerField(default=0)
 
-    # Optional element (we keep MVP as "one element" even if some weapons have multiple)
-    # Example: element="Fire", element_damage=240
     element = models.CharField(max_length=40, null=True, blank=True)
     element_damage = models.IntegerField(null=True, blank=True)
 
-    # Optional combat attributes
-    affinity = models.SmallIntegerField(default=0)  # can be negative
+    affinity = models.SmallIntegerField(default=0)
     elderseal = models.CharField(max_length=40, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -121,34 +132,26 @@ class Weapon(models.Model):
         return f"{self.name} ({self.weapon_type})"
 
 
+# ==================================================
+# Skills
+# ==================================================
 class Skill(models.Model):
     """
     Skill model (MHW Skills MVP).
 
     Design goals
-    - Keep the schema minimal but useful for API list/detail and future build logic.
-    - external_id is required + unique to support safe re-imports (upsert-like behavior).
-    - Store the maximum level so frontend/build logic can reason about valid ranges.
-    - Description can be long (skill text), so use TextField.
+    - Represent passive skills used in builds.
+    - Store only high-level description and max level for MVP.
+    - Allow reuse by weapons, armor, and future decorations.
 
-    Notes about mhw-db
-    - Skills typically include:
-      id, name, description, ranks (each rank has level, description, modifiers, etc.)
-    - MVP stores:
-      * max_level derived from ranks
-      * description as the base skill description (plus ranks later if needed)
+    Notes
+    - max_level is derived from mhw-db ranks data.
+    - Per-rank modifiers are intentionally excluded for now.
     """
 
-    # Stable ID from external data source (mhw-db)
     external_id = models.IntegerField(unique=True)
-
-    # Skill name (e.g., "Attack Boost")
     name = models.CharField(max_length=200)
-
-    # High-level description (skill summary)
     description = models.TextField(blank=True, default="")
-
-    # Max level derived from ranks (e.g., 7 for Attack Boost)
     max_level = models.PositiveSmallIntegerField(default=1)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -162,3 +165,106 @@ class Skill(models.Model):
 
     def __str__(self):
         return f"{self.name} (Lv {self.max_level})"
+
+
+# ==================================================
+# Armor
+# ==================================================
+class Armor(models.Model):
+    """
+    Armor model (MHW Armor MVP).
+
+    Design goals
+    - Represent a single armor piece (not a set).
+    - Store defense values and decoration slots.
+    - Attach skills with levels via a through model.
+
+    Notes about mhw-db
+    - Armor includes defense values and a list of skills with levels.
+    - MVP stores:
+      * base/max/augmented defense
+      * up to 3 decoration slots
+      * skill + level pairs
+    """
+
+    external_id = models.IntegerField(unique=True)
+
+    name = models.CharField(max_length=200)
+    armor_type = models.CharField(max_length=40)  # head, chest, gloves, waist, legs
+    rarity = models.PositiveSmallIntegerField(default=1)
+
+    defense_base = models.PositiveSmallIntegerField(default=0)
+    defense_max = models.PositiveSmallIntegerField(default=0)
+    defense_augmented = models.PositiveSmallIntegerField(default=0)
+
+    # Decoration slots (rank/level, 0 = empty)
+    slot_1 = models.PositiveSmallIntegerField(default=0)
+    slot_2 = models.PositiveSmallIntegerField(default=0)
+    slot_3 = models.PositiveSmallIntegerField(default=0)
+
+    # Skills are linked via ArmorSkill to store level
+    skills = models.ManyToManyField(
+        Skill,
+        through="ArmorSkill",
+        related_name="armors",
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["armor_type"], name="idx_armor_type"),
+            models.Index(fields=["rarity"], name="idx_armor_rarity"),
+            models.Index(fields=["defense_base"], name="idx_armor_defense_base"),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.armor_type})"
+
+
+class ArmorSkill(models.Model):
+    """
+    Through model connecting Armor and Skill with a level.
+
+    Why this exists
+    - Armor skills in MHW always have a level.
+    - ManyToManyField alone cannot store extra attributes.
+
+    Rules
+    - One armor piece can grant a given skill only once.
+    - level must be >= 1.
+    """
+
+    armor = models.ForeignKey(
+        Armor,
+        on_delete=models.CASCADE,
+        related_name="armor_skills",
+    )
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name="skill_armors",
+    )
+
+    level = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["armor", "skill"],
+                name="uniq_armorskill_armor_skill",
+            ),
+            models.CheckConstraint(
+                condition=Q(level__gte=1),
+                name="chk_armorskill_level_gte_1",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["skill", "level"], name="idx_armorskill_skill_level"),
+            models.Index(fields=["armor"], name="idx_armorskill_armor"),
+        ]
+
+    def __str__(self):
+        return f"{self.armor.name} - {self.skill.name} (Lv {self.level})"

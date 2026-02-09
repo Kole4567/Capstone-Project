@@ -1,7 +1,7 @@
 from rest_framework import generics
 from rest_framework.pagination import LimitOffsetPagination
 
-from .models import Monster, Weapon, Skill
+from .models import Monster, Weapon, Skill, Armor
 from .serializers import (
     MonsterListSerializer,
     MonsterDetailSerializer,
@@ -9,6 +9,8 @@ from .serializers import (
     WeaponDetailSerializer,
     SkillListSerializer,
     SkillDetailSerializer,
+    ArmorListSerializer,
+    ArmorDetailSerializer,
 )
 
 
@@ -340,4 +342,139 @@ class SkillDetailView(generics.RetrieveAPIView):
     """
     queryset = Skill.objects.all()
     serializer_class = SkillDetailSerializer
+    lookup_field = "id"
+
+
+# ==================================================
+# Armor
+# ==================================================
+class ArmorListView(generics.ListAPIView):
+    """
+    GET /api/v1/mhw/armors/
+
+    Minimal MVP query parameters:
+    - type (string) or armor_type (string): case-insensitive exact match
+      (common values from mhw-db: head, chest, gloves, waist, legs)
+    - rarity (int): exact match
+    - min_rarity (int)
+    - max_rarity (int)
+    - min_defense (int): compares against defense_base
+    - has_skill (string): case-insensitive contains match on Skill.name (via ArmorSkill join)
+    - order_by (string): allowed fields only, supports "-" prefix
+    """
+
+    serializer_class = ArmorListSerializer
+
+    ALLOWED_ORDER_FIELDS = {
+        "id",
+        "name",
+        "armor_type",
+        "rarity",
+        "defense_base",
+        "defense_max",
+        "defense_augmented",
+        "slot_1",
+        "slot_2",
+        "slot_3",
+    }
+
+    def get_queryset(self):
+        queryset = Armor.objects.all()
+        params = self.request.query_params
+
+        # --------------------------------------------------
+        # Filter: armor type (support both "type" and "armor_type")
+        # --------------------------------------------------
+        armor_type = params.get("type") or params.get("armor_type")
+        if armor_type:
+            queryset = queryset.filter(armor_type__iexact=armor_type.strip())
+
+        # --------------------------------------------------
+        # Filter: rarity (exact match)
+        # --------------------------------------------------
+        rarity = params.get("rarity")
+        if rarity is not None:
+            try:
+                queryset = queryset.filter(rarity=int(rarity))
+            except ValueError:
+                pass
+
+        # --------------------------------------------------
+        # Filter: rarity range (min/max)
+        # --------------------------------------------------
+        min_rarity = params.get("min_rarity")
+        if min_rarity is not None:
+            try:
+                queryset = queryset.filter(rarity__gte=int(min_rarity))
+            except ValueError:
+                pass
+
+        max_rarity = params.get("max_rarity")
+        if max_rarity is not None:
+            try:
+                queryset = queryset.filter(rarity__lte=int(max_rarity))
+            except ValueError:
+                pass
+
+        # --------------------------------------------------
+        # Filter: min_defense (defense_base >= N)
+        # --------------------------------------------------
+        min_defense = params.get("min_defense")
+        if min_defense is not None:
+            try:
+                queryset = queryset.filter(defense_base__gte=int(min_defense))
+            except ValueError:
+                pass
+
+        # --------------------------------------------------
+        # Filter: has_skill (case-insensitive contains on Skill.name)
+        # - Uses ArmorSkill join: armor_skills__skill__name__icontains
+        # - Requires distinct() to avoid duplicates
+        # --------------------------------------------------
+        has_skill = params.get("has_skill")
+        if has_skill:
+            queryset = queryset.filter(
+                armor_skills__skill__name__icontains=has_skill.strip()
+            ).distinct()
+
+        # --------------------------------------------------
+        # Ordering (validated whitelist)
+        # --------------------------------------------------
+        order_by = params.get("order_by")
+        if order_by:
+            field = order_by.lstrip("-")
+            if field in self.ALLOWED_ORDER_FIELDS:
+                queryset = queryset.order_by(order_by)
+            else:
+                queryset = queryset.order_by("id")
+        else:
+            queryset = queryset.order_by("id")
+
+        return queryset
+
+
+class ArmorLimitOffsetPagination(LimitOffsetPagination):
+    """
+    Pagination settings for /armors/paged/
+
+    default_limit: items returned when limit is not specified
+    max_limit: cap to prevent huge responses
+    """
+    default_limit = 50
+    max_limit = 200
+
+
+class ArmorListPagedView(ArmorListView):
+    """
+    GET /api/v1/mhw/armors/paged/
+    """
+    pagination_class = ArmorLimitOffsetPagination
+
+
+class ArmorDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/v1/mhw/armors/{id}/
+    """
+    queryset = Armor.objects.all()
+    serializer_class = ArmorDetailSerializer
     lookup_field = "id"
