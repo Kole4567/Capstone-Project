@@ -37,6 +37,13 @@ from .api_views import (
     CharmDetailView,
 
     # ==================================================
+    # Decorations
+    # ==================================================
+    DecorationListView,
+    DecorationListPagedView,
+    DecorationDetailView,
+
+    # ==================================================
     # Builds
     # ==================================================
     BuildListView,
@@ -143,6 +150,25 @@ urlpatterns = [
         "api/v1/mhw/charms/<int:id>/",
         CharmDetailView.as_view(),
         name="mhw-charm-detail",
+    ),
+
+    # ==================================================
+    # Decorations
+    # ==================================================
+    path(
+        "api/v1/mhw/decorations/",
+        DecorationListView.as_view(),
+        name="mhw-decoration-list",
+    ),
+    path(
+        "api/v1/mhw/decorations/paged/",
+        DecorationListPagedView.as_view(),
+        name="mhw-decoration-list-paged",
+    ),
+    path(
+        "api/v1/mhw/decorations/<int:id>/",
+        DecorationDetailView.as_view(),
+        name="mhw-decoration-detail",
     ),
 
     # ==================================================
