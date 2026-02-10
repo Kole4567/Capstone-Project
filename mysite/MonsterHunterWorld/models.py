@@ -114,6 +114,60 @@ class Skill(models.Model):
 
 
 # ==================================================
+# Armor Sets / Set Bonuses
+# ==================================================
+class ArmorSet(models.Model):
+    """
+    ArmorSet model (Set Bonus grouping).
+
+    Design notes
+    - Represents a named armor set (e.g., 'Teostra', 'Nergigante', etc.).
+    - This is used for set bonus (tier) definitions.
+    - external_id is optional because source data may not provide a stable id.
+    """
+
+    external_id = models.IntegerField(null=True, blank=True, db_index=True)
+    name = models.CharField(max_length=200, unique=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class SetBonusTier(models.Model):
+    """
+    Defines a tier within an ArmorSet (e.g., 2-piece, 4-piece bonus).
+
+    Example:
+    - armor_set = "Teostra Technique"
+    - pieces_required = 3
+    - name = "Master's Touch"
+    """
+
+    armor_set = models.ForeignKey(
+        ArmorSet,
+        on_delete=models.CASCADE,
+        related_name="tiers",
+    )
+
+    pieces_required = models.PositiveSmallIntegerField(default=2)
+    name = models.CharField(max_length=200)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["armor_set", "pieces_required"],
+                name="uniq_setbonustier_armorset_pieces",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.armor_set.name} ({self.pieces_required}) - {self.name}"
+
+
+# ==================================================
 # Armor
 # ==================================================
 class Armor(models.Model):
@@ -122,6 +176,15 @@ class Armor(models.Model):
     """
 
     external_id = models.IntegerField(unique=True)
+
+    armor_set = models.ForeignKey(
+        ArmorSet,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="armors",
+        help_text="Optional armor set mapping for set bonus tiers.",
+    )
 
     name = models.CharField(max_length=200)
     armor_type = models.CharField(max_length=40)

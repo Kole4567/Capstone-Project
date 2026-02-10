@@ -10,6 +10,7 @@ from MonsterHunterWorld.models import (
     Build,
     BuildArmorPiece,
     Charm,
+    CharmSkill,
     Decoration,
     DecorationSkill,
     BuildDecoration,
@@ -241,7 +242,7 @@ class CharmSkillEntrySerializer(serializers.ModelSerializer):
     skill = serializers.SerializerMethodField()
 
     class Meta:
-        model = DecorationSkill  # placeholder to satisfy DRF type checks; not used directly
+        model = CharmSkill
         fields = ["skill", "level"]
 
     def get_skill(self, obj):
@@ -275,7 +276,7 @@ class CharmDetailSerializer(serializers.ModelSerializer):
     Charm detail serializer (MVP).
     """
 
-    charm_skills = serializers.SerializerMethodField()
+    charm_skills = CharmSkillEntrySerializer(many=True, read_only=True)
 
     class Meta:
         model = Charm
@@ -286,22 +287,6 @@ class CharmDetailSerializer(serializers.ModelSerializer):
             "rarity",
             "charm_skills",
         ]
-
-    def get_charm_skills(self, obj):
-        out = []
-        for cs in obj.charm_skills.select_related("skill").all():
-            out.append(
-                {
-                    "skill": {
-                        "id": cs.skill.id,
-                        "external_id": cs.skill.external_id,
-                        "name": cs.skill.name,
-                        "max_level": cs.skill.max_level,
-                    },
-                    "level": cs.level,
-                }
-            )
-        return out
 
 
 class CharmMiniSerializer(serializers.ModelSerializer):
@@ -413,6 +398,18 @@ class BuildDecorationSerializer(serializers.ModelSerializer):
             "name": obj.decoration.name,
             "rarity": obj.decoration.rarity,
         }
+
+    def validate_socket_index(self, value):
+        # DB also enforces this, but serializer validation gives a clearer API error.
+        if value is None:
+            return value
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            raise serializers.ValidationError("socket_index must be an integer.")
+        if not (1 <= value <= 3):
+            raise serializers.ValidationError("socket_index must be between 1 and 3.")
+        return value
 
 
 # ==================================================

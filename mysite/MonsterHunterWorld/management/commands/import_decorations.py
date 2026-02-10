@@ -8,56 +8,56 @@ from MonsterHunterWorld.models import Decoration, DecorationSkill, Skill
 
 
 class Command(BaseCommand):
-    help = "Import MHW decorations data from a mhw-db style JSON file."
+    help = "Import Decorations from mhw-db JSON (https://mhw-db.com/decorations)."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--path",
+            type=str,
             required=True,
-            help="Path to a JSON file (mhw-db decorations endpoint response).",
+            help="Path to decorations JSON file (list). Example: data/mhw_decorations_raw.json",
         )
         parser.add_argument(
             "--reset",
             action="store_true",
-            help="Delete existing Decoration/DecorationSkill before importing.",
+            help="Delete DecorationSkill and Decoration before importing.",
         )
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Parse and validate only (no DB writes).",
+            help="Parse and validate without writing to the database.",
         )
         parser.add_argument(
             "--limit",
             type=int,
             default=None,
-            help="Limit number of records processed (for local testing).",
+            help="Limit number of records for quick testing.",
         )
 
     def handle(self, *args, **options):
-        path = options["path"]
+        path = Path(options["path"]).resolve()
+        if not path.exists():
+            raise CommandError(f"File not found: {path}")
+
         reset = options["reset"]
         dry_run = options["dry_run"]
         limit = options["limit"]
-
-        file_path = Path(path)
-        if not file_path.exists():
-            raise CommandError(f"File not found: {file_path.resolve()}")
-
-        try:
-            data = json.loads(file_path.read_text(encoding="utf-8"))
-        except Exception as e:
-            raise CommandError(f"Failed to read JSON: {e}")
-
-        if not isinstance(data, list):
-            raise CommandError("Expected a JSON array (list) at the top level.")
-
-        if limit is not None:
-            data = data[: max(0, limit)]
 
         if reset and not dry_run:
             self.stdout.write("Reset enabled: deleting DecorationSkill and Decoration...")
             DecorationSkill.objects.all().delete()
             Decoration.objects.all().delete()
+
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as e:
+            raise CommandError(f"Failed to load JSON: {e}")
+
+        if not isinstance(data, list):
+            raise CommandError("Expected a JSON list for decorations.")
+
+        if limit is not None:
+            data = data[: max(0, int(limit))]
 
         created = 0
         updated = 0
@@ -65,94 +65,72 @@ class Command(BaseCommand):
         skills_linked = 0
         skills_skipped = 0
 
-        for idx, row in enumerate(data, start=1):
-            if not isinstance(row, dict):
-                skipped += 1
-                continue
-
+        for row in data:
             external_id = row.get("id")
-            name = row.get("name")
+            name = (row.get("name") or "").strip()
             rarity = row.get("rarity")
+            slot = row.get("slot")  # optional, kept for future use
+            skills = row.get("skills") or []
 
-            if external_id is None or name is None:
+            if external_id is None or not name:
                 skipped += 1
                 continue
 
+            # rarity can be missing in edge cases
             try:
-                external_id = int(external_id)
-            except (TypeError, ValueError):
-                skipped += 1
-                continue
-
-            # rarity sometimes may be missing; keep it defensive
-            try:
-                rarity_val = int(rarity) if rarity is not None else 1
-            except (TypeError, ValueError):
-                rarity_val = 1
-
-            skills_payload = row.get("skills") or []
-            if not isinstance(skills_payload, list):
-                skills_payload = []
+                rarity = int(rarity) if rarity is not None else 1
+            except ValueError:
+                rarity = 1
 
             if dry_run:
-                # Validate parse only
-                for s in skills_payload:
-                    if not isinstance(s, dict):
-                        continue
-                    skill_info = s.get("skill") or {}
-                    skill_external_id = skill_info.get("id")
-                    _ = s.get("level")
-                    _ = skill_external_id
+                # Validate skills structure without writing
+                for s in skills:
+                    # In your JSON, both "skill" and "id" exist. Prefer "skill".
+                    skill_external_id = s.get("skill", s.get("id"))
+                    level = s.get("level", 1)
+                    try:
+                        int(skill_external_id)
+                        int(level)
+                    except Exception:
+                        skills_skipped += 1
                 continue
 
+            # Write one decoration + its join rows atomically
             with transaction.atomic():
-                obj, was_created = Decoration.objects.get_or_create(
-                    external_id=external_id,
-                    defaults={"name": name, "rarity": rarity_val},
+                obj, was_created = Decoration.objects.update_or_create(
+                    external_id=int(external_id),
+                    defaults={
+                        "name": name,
+                        "rarity": rarity,
+                    },
                 )
-
-                changed = False
-                if obj.name != name:
-                    obj.name = name
-                    changed = True
-                if obj.rarity != rarity_val:
-                    obj.rarity = rarity_val
-                    changed = True
-
                 if was_created:
                     created += 1
                 else:
-                    if changed:
-                        obj.save(update_fields=["name", "rarity"])
-                        updated += 1
+                    updated += 1
 
-                # Replace semantics for join rows per decoration
+                # Replace semantics for join rows
                 DecorationSkill.objects.filter(decoration=obj).delete()
 
-                for s in skills_payload:
-                    if not isinstance(s, dict):
-                        continue
-
+                for s in skills:
+                    skill_external_id = s.get("skill", s.get("id"))
                     level = s.get("level", 1)
-                    try:
-                        level = int(level)
-                    except (TypeError, ValueError):
-                        level = 1
 
-                    skill_info = s.get("skill") or {}
-                    if not isinstance(skill_info, dict):
-                        skills_skipped += 1
-                        continue
-
-                    # mhw-db skill id maps to our Skill.external_id
-                    skill_external_id = skill_info.get("id")
                     try:
                         skill_external_id = int(skill_external_id)
-                    except (TypeError, ValueError):
+                        level = int(level)
+                    except Exception:
                         skills_skipped += 1
                         continue
 
+                    # Match by Skill.external_id (mhw-db skill id)
                     skill_obj = Skill.objects.filter(external_id=skill_external_id).first()
+                    if not skill_obj:
+                        # fallback: match by skillName if provided
+                        skill_name = (s.get("skillName") or "").strip()
+                        if skill_name:
+                            skill_obj = Skill.objects.filter(name__iexact=skill_name).first()
+
                     if not skill_obj:
                         skills_skipped += 1
                         continue
@@ -164,15 +142,7 @@ class Command(BaseCommand):
                     )
                     skills_linked += 1
 
-        if dry_run:
-            self.stdout.write(self.style.SUCCESS("Dry-run complete. No DB writes performed."))
-            return
-
         self.stdout.write(
-            self.style.SUCCESS(
-                "Decorations import complete. "
-                f"created={created}, updated={updated}, skipped={skipped}, "
-                f"skills_linked={skills_linked}, skills_skipped={skills_skipped}"
-            )
+            f"Decorations import complete. created={created}, updated={updated}, skipped={skipped}, "
+            f"skills_linked={skills_linked}, sklls_skipped={skills_skipped}"
         )
-    

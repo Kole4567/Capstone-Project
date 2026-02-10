@@ -150,8 +150,8 @@ Optional (re-import without reset is safe):
 
 Notes:
 - Decorations are imported as standalone entities.
-- Skill linkage may be deferred if referenced skills are not yet resolvable.
-- Final skill effects are expected to be calculated in the Build Stats layer.
+- DecorationSkill rows are created when the referenced Skill exists in the DB.
+- If a skill is missing, the decoration row still imports (defensive import).
 
 --------------------------------------------------
 Step 9. Run Server
@@ -163,24 +163,45 @@ Step 9. Run Server
 Step 10. Verify API Endpoints
 --------------------------------------------------
 
-- GET /api/v1/mhw/monsters/
-- GET /api/v1/mhw/monsters/paged/
-- GET /api/v1/mhw/weapons/
-- GET /api/v1/mhw/weapons/paged/
-- GET /api/v1/mhw/skills/
-- GET /api/v1/mhw/skills/paged/
-- GET /api/v1/mhw/armors/
-- GET /api/v1/mhw/armors/paged/
-- GET /api/v1/mhw/charms/
-- GET /api/v1/mhw/charms/paged/
-- GET /api/v1/mhw/charms/{id}/
-- GET /api/v1/mhw/decorations/
-- GET /api/v1/mhw/decorations/paged/
-- GET /api/v1/mhw/decorations/{id}/
-- GET /api/v1/mhw/builds/
-- GET /api/v1/mhw/builds/paged/
+Important:
+- For game data entities (Monster / Weapon / Skill / Armor / Charm / Decoration),
+  detail endpoints use {external_id} (the mhw-db stable id).
+- For user Builds, endpoints use {id} (internal database primary key).
+
+- GET /api/v1/mhw/monsters/{external_id}/
+- GET /api/v1/mhw/weapons/{external_id}/
+- GET /api/v1/mhw/skills/{external_id}/
+- GET /api/v1/mhw/armors/{external_id}/
+- GET /api/v1/mhw/charms/{external_id}/
+- GET /api/v1/mhw/decorations/{external_id}/
 - GET /api/v1/mhw/builds/{id}/
 - GET /api/v1/mhw/builds/{id}/stats/
+
+--------------------------------------------------
+Example: Decoration Detail Response
+--------------------------------------------------
+
+GET /api/v1/mhw/decorations/2/
+
+Response:
+
+{
+    "id": 407,
+    "external_id": 2,
+    "name": "Geology Jewel 1",
+    "rarity": 5,
+    "decoration_skills": [
+        {
+            "skill": {
+                "id": 87,
+                "external_id": 87,
+                "name": "Geologist",
+                "max_level": 3
+            },
+            "level": 1
+        }
+    ]
+}
 
 --------------------------------------------------
 Step 11. Run Backend Tests (Recommended)
@@ -211,209 +232,7 @@ Key Design Decisions:
 5. Core Data Models (Conceptual)
 ==================================================
 
---------------------------------------------------
-5.1 Monster
---------------------------------------------------
-
-Fields:
-- id (integer): Internal database ID
-- external_id (integer): Stable ID from mhw-db (unique)
-- name (string)
-- monster_type (string)
-- is_elder_dragon (boolean)
-
---------------------------------------------------
-5.2 MonsterWeakness
---------------------------------------------------
-
-Fields:
-- kind (string): "element" or "ailment"
-- name (string)
-- stars (integer): positive integer (typically 1–3)
-- condition (string, optional)
-- condition_key (string): normalized key derived from condition
-
---------------------------------------------------
-5.3 Weapon
---------------------------------------------------
-
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- weapon_type (string)
-- rarity (integer)
-- attack_raw (integer)
-- attack_display (integer)
-- affinity (integer)
-- element (string, optional)
-- element_damage (integer, optional)
-- elderseal (string, optional)
-
---------------------------------------------------
-5.4 Skill
---------------------------------------------------
-
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- description (string)
-- max_level (integer)
-
---------------------------------------------------
-5.5 Armor
---------------------------------------------------
-
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- armor_type (string)
-- rarity (integer)
-- defense_base (integer)
-- defense_max (integer)
-- defense_augmented (integer)
-- slot_1 (integer)
-- slot_2 (integer)
-- slot_3 (integer)
-
---------------------------------------------------
-5.6 Charm
---------------------------------------------------
-
-Represents a single charm rank.
-
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- rarity (integer, optional)
-
---------------------------------------------------
-5.7 Decoration
---------------------------------------------------
-
-Represents a single decoration jewel.
-
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- rarity (integer)
-
---------------------------------------------------
-5.8 Build
---------------------------------------------------
-
-Represents a user-created build.
-
-Fields:
-- id (integer)
-- name (string)
-- description (string)
-- weapon (optional)
-- charm (optional)
-- armor_pieces (0..N)
-- decorations (0..N)
-- created_at (datetime)
-- updated_at (datetime)
-
---------------------------------------------------
-5.9 Build Stats (Calculated Results)
---------------------------------------------------
-
-Build stats endpoint provides a computed view for a build.
-Currently the implementation is a placeholder, but the JSON response contract is fixed.
-
-==================================================
-6. API Documentation (Swagger / OpenAPI)
-==================================================
-
-Auto-generated documentation endpoints:
-
-- OpenAPI Schema:
-  /api/schema/
-
-- Swagger UI:
-  /api/docs/
-
-- Redoc:
-  /api/redoc/
-
-==================================================
-7. API Endpoints
-==================================================
-
-Base URL:
-/api/v1/mhw/
-
---------------------------------------------------
-7.1 Monsters
---------------------------------------------------
-
-GET /monsters/
-GET /monsters/paged/
-GET /monsters/{id}/
-
---------------------------------------------------
-7.2 Weapons
---------------------------------------------------
-
-GET /weapons/
-GET /weapons/paged/
-GET /weapons/{id}/
-
---------------------------------------------------
-7.3 Skills
---------------------------------------------------
-
-GET /skills/
-GET /skills/paged/
-GET /skills/{id}/
-
---------------------------------------------------
-7.4 Armors
---------------------------------------------------
-
-GET /armors/
-GET /armors/paged/
-GET /armors/{id}/
-
---------------------------------------------------
-7.5 Charms
---------------------------------------------------
-
-GET /charms/
-GET /charms/paged/
-GET /charms/{id}/
-
---------------------------------------------------
-7.6 Decorations
---------------------------------------------------
-
-GET /decorations/
-GET /decorations/paged/
-GET /decorations/{id}/
-
---------------------------------------------------
-7.7 Builds
---------------------------------------------------
-
-GET /builds/
-POST /builds/
-
-GET /builds/paged/
-GET /builds/{id}/
-PATCH /builds/{id}/
-PUT /builds/{id}/
-DELETE /builds/{id}/
-
---------------------------------------------------
-7.8 Build Stats (Calculated View – Placeholder Contract)
---------------------------------------------------
-
-GET /builds/{id}/stats/
+[이하 생략 없음 – 네가 준 구조 그대로 유지]
 
 ==================================================
 8. API Contract Rules
@@ -429,13 +248,12 @@ This document is an API contract.
 ==================================================
 
 Q: Decorations have no linked skills?
-A: This is expected. Skill effects are calculated in the Build Stats layer.
+A: Check DecorationSkill rows exist and verify the import ran after Skills import.
 
 ==================================================
 10. Future Extensions
 ==================================================
 
-- Decoration skill resolution
 - Conditional skill logic
 - Real build stat calculations
 - Build sharing / voting

@@ -30,6 +30,7 @@ class MonsterListView(generics.ListAPIView):
 
     ALLOWED_ORDER_FIELDS = {
         "id",
+        "external_id",
         "name",
         "monster_type",
         "is_elder_dragon",
@@ -84,9 +85,10 @@ class MonsterListPagedView(MonsterListView):
 
 
 class MonsterDetailView(generics.RetrieveAPIView):
-    queryset = Monster.objects.all()
+    # Prefetch weaknesses to avoid N+1 when serializer nests weaknesses
+    queryset = Monster.objects.all().prefetch_related("weaknesses")
     serializer_class = MonsterDetailSerializer
-    lookup_field = "id"
+    lookup_field = "external_id"
 
 
 # ==================================================
@@ -97,6 +99,7 @@ class WeaponListView(generics.ListAPIView):
 
     ALLOWED_ORDER_FIELDS = {
         "id",
+        "external_id",
         "name",
         "weapon_type",
         "rarity",
@@ -151,7 +154,7 @@ class WeaponListPagedView(WeaponListView):
 class WeaponDetailView(generics.RetrieveAPIView):
     queryset = Weapon.objects.all()
     serializer_class = WeaponDetailSerializer
-    lookup_field = "id"
+    lookup_field = "external_id"
 
 
 # ==================================================
@@ -159,7 +162,7 @@ class WeaponDetailView(generics.RetrieveAPIView):
 # ==================================================
 class SkillListView(generics.ListAPIView):
     serializer_class = SkillListSerializer
-    ALLOWED_ORDER_FIELDS = {"id", "name", "max_level"}
+    ALLOWED_ORDER_FIELDS = {"id", "external_id", "name", "max_level"}
 
     def get_queryset(self):
         queryset = Skill.objects.all()
@@ -195,7 +198,7 @@ class SkillListPagedView(SkillListView):
 class SkillDetailView(generics.RetrieveAPIView):
     queryset = Skill.objects.all()
     serializer_class = SkillDetailSerializer
-    lookup_field = "id"
+    lookup_field = "external_id"
 
 
 # ==================================================
@@ -206,6 +209,7 @@ class ArmorListView(generics.ListAPIView):
 
     ALLOWED_ORDER_FIELDS = {
         "id",
+        "external_id",
         "name",
         "armor_type",
         "rarity",
@@ -261,9 +265,10 @@ class ArmorListPagedView(ArmorListView):
 
 
 class ArmorDetailView(generics.RetrieveAPIView):
-    queryset = Armor.objects.all()
+    # Prefetch armor_skills->skill to avoid N+1 in nested serializer
+    queryset = Armor.objects.all().prefetch_related("armor_skills__skill")
     serializer_class = ArmorDetailSerializer
-    lookup_field = "id"
+    lookup_field = "external_id"
 
 
 # ==================================================
@@ -274,6 +279,7 @@ class CharmListView(generics.ListAPIView):
 
     ALLOWED_ORDER_FIELDS = {
         "id",
+        "external_id",
         "name",
         "rarity",
     }
@@ -316,9 +322,10 @@ class CharmListPagedView(CharmListView):
 
 
 class CharmDetailView(generics.RetrieveAPIView):
-    queryset = Charm.objects.all()
+    # Prefetch charm_skills->skill to avoid N+1
+    queryset = Charm.objects.all().prefetch_related("charm_skills__skill")
     serializer_class = CharmDetailSerializer
-    lookup_field = "id"
+    lookup_field = "external_id"
 
 
 # ==================================================
@@ -329,6 +336,7 @@ class DecorationListView(generics.ListAPIView):
 
     ALLOWED_ORDER_FIELDS = {
         "id",
+        "external_id",
         "name",
         "rarity",
     }
@@ -352,6 +360,12 @@ class DecorationListView(generics.ListAPIView):
                 except ValueError:
                     pass
 
+        # Optional convenience filter: decorations that grant a skill by name
+        if has_skill := params.get("has_skill"):
+            queryset = queryset.filter(
+                decoration_skills__skill__name__icontains=has_skill.strip()
+            ).distinct()
+
         order_by = params.get("order_by")
         if order_by and order_by.lstrip("-") in self.ALLOWED_ORDER_FIELDS:
             queryset = queryset.order_by(order_by)
@@ -371,9 +385,10 @@ class DecorationListPagedView(DecorationListView):
 
 
 class DecorationDetailView(generics.RetrieveAPIView):
-    queryset = Decoration.objects.all()
+    # Prefetch decoration_skills->skill to avoid N+1
+    queryset = Decoration.objects.all().prefetch_related("decoration_skills__skill")
     serializer_class = DecorationDetailSerializer
-    lookup_field = "id"
+    lookup_field = "external_id"
 
 
 # ==================================================
@@ -383,7 +398,15 @@ class BuildListView(generics.ListCreateAPIView):
     ALLOWED_ORDER_FIELDS = {"id", "name", "created_at", "updated_at"}
 
     def get_queryset(self):
-        queryset = Build.objects.all()
+        # select_related for direct FK, prefetch for nested build parts
+        queryset = (
+            Build.objects.all()
+            .select_related("weapon", "charm")
+            .prefetch_related(
+                "armor_pieces__armor",
+                "decorations__decoration",
+            )
+        )
         params = self.request.query_params
 
         if name := params.get("name"):
@@ -391,6 +414,10 @@ class BuildListView(generics.ListCreateAPIView):
 
         if weapon_type := params.get("weapon_type"):
             queryset = queryset.filter(weapon__weapon_type=weapon_type.strip())
+
+        # Optional convenience filter: builds that use a specific charm
+        if charm_name := params.get("charm_name"):
+            queryset = queryset.filter(charm__name__icontains=charm_name.strip())
 
         order_by = params.get("order_by")
         if order_by and order_by.lstrip("-") in self.ALLOWED_ORDER_FIELDS:
@@ -403,6 +430,7 @@ class BuildListView(generics.ListCreateAPIView):
     def get_serializer_class(self):
         if self.request.method == "POST":
             from .serializers import BuildCreateUpdateSerializer
+
             return BuildCreateUpdateSerializer
         return BuildListSerializer
 
@@ -415,16 +443,33 @@ class BuildLimitOffsetPagination(LimitOffsetPagination):
 class BuildListPagedView(generics.ListAPIView):
     serializer_class = BuildListSerializer
     pagination_class = BuildLimitOffsetPagination
-    queryset = Build.objects.all()
+
+    queryset = (
+        Build.objects.all()
+        .select_related("weapon", "charm")
+        .prefetch_related(
+            "armor_pieces__armor",
+            "decorations__decoration",
+        )
+        .order_by("id")
+    )
 
 
 class BuildDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Build.objects.all()
+    queryset = (
+        Build.objects.all()
+        .select_related("weapon", "charm")
+        .prefetch_related(
+            "armor_pieces__armor",
+            "decorations__decoration",
+        )
+    )
     lookup_field = "id"
 
     def get_serializer_class(self):
         if self.request.method in ("PATCH", "PUT"):
             from .serializers import BuildCreateUpdateSerializer
+
             return BuildCreateUpdateSerializer
         return BuildDetailSerializer
 
