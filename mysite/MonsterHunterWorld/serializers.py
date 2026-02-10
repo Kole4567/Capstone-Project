@@ -9,6 +9,7 @@ from MonsterHunterWorld.models import (
     ArmorSkill,
     Build,
     BuildArmorPiece,
+    Charm,
 )
 
 
@@ -19,6 +20,7 @@ class MonsterWeaknessSerializer(serializers.ModelSerializer):
     """
     Serializer for a monster weakness entry.
     """
+
     class Meta:
         model = MonsterWeakness
         fields = ["kind", "name", "stars", "condition"]
@@ -28,6 +30,7 @@ class MonsterListSerializer(serializers.ModelSerializer):
     """
     Lightweight serializer for list endpoints.
     """
+
     class Meta:
         model = Monster
         fields = [
@@ -43,6 +46,7 @@ class MonsterDetailSerializer(serializers.ModelSerializer):
     """
     Detail serializer includes nested weaknesses.
     """
+
     weaknesses = MonsterWeaknessSerializer(many=True, read_only=True)
 
     class Meta:
@@ -64,6 +68,7 @@ class WeaponListSerializer(serializers.ModelSerializer):
     """
     Weapon list serializer (MVP).
     """
+
     class Meta:
         model = Weapon
         fields = [
@@ -85,6 +90,7 @@ class WeaponDetailSerializer(serializers.ModelSerializer):
     """
     Weapon detail serializer (MVP).
     """
+
     class Meta:
         model = Weapon
         fields = [
@@ -108,9 +114,11 @@ class WeaponDetailSerializer(serializers.ModelSerializer):
 class SkillListSerializer(serializers.ModelSerializer):
     """
     Skill list serializer (MVP).
+
     Notes:
     - Must include description because tests expect it.
     """
+
     class Meta:
         model = Skill
         fields = [
@@ -126,6 +134,7 @@ class SkillDetailSerializer(serializers.ModelSerializer):
     """
     Skill detail serializer (MVP).
     """
+
     class Meta:
         model = Skill
         fields = [
@@ -143,10 +152,12 @@ class SkillDetailSerializer(serializers.ModelSerializer):
 class ArmorSkillEntrySerializer(serializers.ModelSerializer):
     """
     Serializer for an armor-skill join entry.
+
     Includes:
     - skill (nested minimal info)
     - level
     """
+
     skill = serializers.SerializerMethodField()
 
     class Meta:
@@ -171,6 +182,7 @@ class ArmorListSerializer(serializers.ModelSerializer):
     """
     Armor list serializer (MVP).
     """
+
     class Meta:
         model = Armor
         fields = [
@@ -191,8 +203,10 @@ class ArmorListSerializer(serializers.ModelSerializer):
 class ArmorDetailSerializer(serializers.ModelSerializer):
     """
     Armor detail serializer (MVP).
+
     Includes nested skills with levels via ArmorSkill.
     """
+
     armor_skills = ArmorSkillEntrySerializer(many=True, read_only=True)
 
     class Meta:
@@ -214,6 +228,43 @@ class ArmorDetailSerializer(serializers.ModelSerializer):
 
 
 # ==================================================
+# Charms
+# ==================================================
+class CharmListSerializer(serializers.ModelSerializer):
+    """
+    Charm list serializer (MVP).
+    """
+
+    class Meta:
+        model = Charm
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "rarity",
+        ]
+
+
+class CharmDetailSerializer(serializers.ModelSerializer):
+    """
+    Charm detail serializer (MVP).
+
+    Notes:
+    - Minimal detail payload for PR1.
+    - We can expand later to include charm skills if needed.
+    """
+
+    class Meta:
+        model = Charm
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "rarity",
+        ]
+
+
+# ==================================================
 # Builds
 # ==================================================
 class BuildArmorPieceSerializer(serializers.ModelSerializer):
@@ -221,9 +272,11 @@ class BuildArmorPieceSerializer(serializers.ModelSerializer):
     Read:
     - slot
     - armor (minimal)
+
     Write:
     - armor_id
     """
+
     armor = serializers.SerializerMethodField(read_only=True)
     armor_id = serializers.IntegerField(write_only=True, required=False)
 
@@ -251,11 +304,28 @@ class BuildArmorPieceSerializer(serializers.ModelSerializer):
         }
 
 
+class CharmMiniSerializer(serializers.ModelSerializer):
+    """
+    Minimal charm representation for embedding inside Build responses.
+    """
+
+    class Meta:
+        model = Charm
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "rarity",
+        ]
+
+
 class BuildListSerializer(serializers.ModelSerializer):
     """
     Build list serializer (MVP).
     """
+
     weapon = serializers.SerializerMethodField()
+    charm = CharmMiniSerializer(read_only=True)
 
     class Meta:
         model = Build
@@ -264,6 +334,7 @@ class BuildListSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "weapon",
+            "charm",
             "created_at",
             "updated_at",
         ]
@@ -284,7 +355,9 @@ class BuildDetailSerializer(serializers.ModelSerializer):
     """
     Build detail serializer (MVP).
     """
+
     weapon = serializers.SerializerMethodField()
+    charm = CharmMiniSerializer(read_only=True)
     armor_pieces = BuildArmorPieceSerializer(many=True, read_only=True)
 
     class Meta:
@@ -294,6 +367,7 @@ class BuildDetailSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "weapon",
+            "charm",
             "armor_pieces",
             "created_at",
             "updated_at",
@@ -321,8 +395,11 @@ class BuildCreateUpdateSerializer(serializers.ModelSerializer):
     """
     Build create/update serializer (MVP).
     - armor_pieces uses replace semantics
+    - charm_id is optional and supports null to unset
     """
+
     weapon_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    charm_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     armor_pieces = BuildArmorPieceSerializer(many=True, required=False)
 
     class Meta:
@@ -332,6 +409,7 @@ class BuildCreateUpdateSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "weapon_id",
+            "charm_id",
             "armor_pieces",
             "created_at",
             "updated_at",
@@ -341,9 +419,11 @@ class BuildCreateUpdateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         armor_pieces_data = validated_data.pop("armor_pieces", [])
         weapon_id = validated_data.pop("weapon_id", None)
+        charm_id = validated_data.pop("charm_id", None)
 
         build = Build.objects.create(
             weapon_id=weapon_id,
+            charm_id=charm_id,
             **validated_data,
         )
 
@@ -362,12 +442,16 @@ class BuildCreateUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         armor_pieces_data = validated_data.pop("armor_pieces", None)
         weapon_id = validated_data.pop("weapon_id", None)
+        charm_id = validated_data.pop("charm_id", None)
 
         for k, v in validated_data.items():
             setattr(instance, k, v)
 
         if "weapon_id" in self.initial_data:
             instance.weapon_id = weapon_id
+
+        if "charm_id" in self.initial_data:
+            instance.charm_id = charm_id
 
         instance.save()
 
@@ -397,7 +481,7 @@ class BuildComputedSkillSerializer(serializers.Serializer):
 
     sources = serializers.DictField(
         child=serializers.IntegerField(),
-        help_text="Breakdown of skill levels by source (armor/charm/decoration/weapon/set_bonus)"
+        help_text="Breakdown of skill levels by source (armor/charm/decoration/weapon/set_bonus)",
     )
 
 
@@ -438,4 +522,3 @@ class BuildStatsSerializer(serializers.Serializer):
     stats = BuildStatsBlockSerializer()
     skills = BuildComputedSkillSerializer(many=True)
     set_bonuses = BuildSetBonusSerializer(many=True, required=False)
-

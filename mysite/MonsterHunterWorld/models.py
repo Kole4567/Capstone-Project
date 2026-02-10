@@ -181,6 +181,59 @@ class ArmorSkill(models.Model):
 
 
 # ==================================================
+# Charms
+# ==================================================
+class Charm(models.Model):
+    """
+    Charm model (MHW Charms MVP).
+
+    Design notes
+    - external_id comes from mhw-db and is treated as stable.
+    - We keep CharmSkill as a separate join table so a charm can grant multiple skills.
+    """
+
+    external_id = models.IntegerField(unique=True, db_index=True)
+    name = models.CharField(max_length=255)
+    rarity = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class CharmSkill(models.Model):
+    """
+    Join table between Charm and Skill with a level.
+    """
+
+    charm = models.ForeignKey(
+        Charm,
+        on_delete=models.CASCADE,
+        related_name="charm_skills",
+    )
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name="skill_charms",
+    )
+
+    level = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["charm", "skill"],
+                name="uniq_charmskill_charm_skill",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.charm.name} - {self.skill.name} (Lv {self.level})"
+
+
+# ==================================================
 # Builds
 # ==================================================
 class Build(models.Model):
@@ -190,6 +243,7 @@ class Build(models.Model):
     Represents a saved loadout:
     - One weapon (optional)
     - Exactly one armor per slot (via BuildArmorPiece)
+    - One charm (optional)
     """
 
     name = models.CharField(max_length=200)
@@ -197,6 +251,14 @@ class Build(models.Model):
 
     weapon = models.ForeignKey(
         Weapon,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="builds",
+    )
+
+    charm = models.ForeignKey(
+        Charm,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
