@@ -10,6 +10,9 @@ from MonsterHunterWorld.models import (
     Build,
     BuildArmorPiece,
     Charm,
+    Decoration,
+    DecorationSkill,
+    BuildDecoration,
 )
 
 
@@ -230,6 +233,28 @@ class ArmorDetailSerializer(serializers.ModelSerializer):
 # ==================================================
 # Charms
 # ==================================================
+class CharmSkillEntrySerializer(serializers.ModelSerializer):
+    """
+    Serializer for a charm-skill join entry.
+    """
+
+    skill = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DecorationSkill  # placeholder to satisfy DRF type checks; not used directly
+        fields = ["skill", "level"]
+
+    def get_skill(self, obj):
+        if not obj.skill_id:
+            return None
+        return {
+            "id": obj.skill.id,
+            "external_id": obj.skill.external_id,
+            "name": obj.skill.name,
+            "max_level": obj.skill.max_level,
+        }
+
+
 class CharmListSerializer(serializers.ModelSerializer):
     """
     Charm list serializer (MVP).
@@ -248,10 +273,40 @@ class CharmListSerializer(serializers.ModelSerializer):
 class CharmDetailSerializer(serializers.ModelSerializer):
     """
     Charm detail serializer (MVP).
+    """
 
-    Notes:
-    - Minimal detail payload for PR1.
-    - We can expand later to include charm skills if needed.
+    charm_skills = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Charm
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "rarity",
+            "charm_skills",
+        ]
+
+    def get_charm_skills(self, obj):
+        out = []
+        for cs in obj.charm_skills.select_related("skill").all():
+            out.append(
+                {
+                    "skill": {
+                        "id": cs.skill.id,
+                        "external_id": cs.skill.external_id,
+                        "name": cs.skill.name,
+                        "max_level": cs.skill.max_level,
+                    },
+                    "level": cs.level,
+                }
+            )
+        return out
+
+
+class CharmMiniSerializer(serializers.ModelSerializer):
+    """
+    Minimal charm representation for embedding inside Build responses.
     """
 
     class Meta:
@@ -262,6 +317,102 @@ class CharmDetailSerializer(serializers.ModelSerializer):
             "name",
             "rarity",
         ]
+
+
+# ==================================================
+# Decorations
+# ==================================================
+class DecorationSkillEntrySerializer(serializers.ModelSerializer):
+    """
+    Serializer for a decoration-skill join entry.
+    """
+
+    skill = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DecorationSkill
+        fields = [
+            "skill",
+            "level",
+        ]
+
+    def get_skill(self, obj):
+        if not obj.skill_id:
+            return None
+        return {
+            "id": obj.skill.id,
+            "external_id": obj.skill.external_id,
+            "name": obj.skill.name,
+            "max_level": obj.skill.max_level,
+        }
+
+
+class DecorationListSerializer(serializers.ModelSerializer):
+    """
+    Decoration list serializer (MVP).
+    """
+
+    class Meta:
+        model = Decoration
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "rarity",
+        ]
+
+
+class DecorationDetailSerializer(serializers.ModelSerializer):
+    """
+    Decoration detail serializer (MVP).
+    Includes nested skills with levels via DecorationSkill.
+    """
+
+    decoration_skills = DecorationSkillEntrySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Decoration
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "rarity",
+            "decoration_skills",
+        ]
+
+
+class BuildDecorationSerializer(serializers.ModelSerializer):
+    """
+    Read:
+    - slot
+    - socket_index
+    - decoration (minimal)
+
+    Write:
+    - decoration_id
+    """
+
+    decoration = serializers.SerializerMethodField(read_only=True)
+    decoration_id = serializers.IntegerField(write_only=True, required=False)
+
+    class Meta:
+        model = BuildDecoration
+        fields = [
+            "slot",
+            "socket_index",
+            "decoration",
+            "decoration_id",
+        ]
+
+    def get_decoration(self, obj):
+        if not obj.decoration_id:
+            return None
+        return {
+            "id": obj.decoration.id,
+            "external_id": obj.decoration.external_id,
+            "name": obj.decoration.name,
+            "rarity": obj.decoration.rarity,
+        }
 
 
 # ==================================================
@@ -304,21 +455,6 @@ class BuildArmorPieceSerializer(serializers.ModelSerializer):
         }
 
 
-class CharmMiniSerializer(serializers.ModelSerializer):
-    """
-    Minimal charm representation for embedding inside Build responses.
-    """
-
-    class Meta:
-        model = Charm
-        fields = [
-            "id",
-            "external_id",
-            "name",
-            "rarity",
-        ]
-
-
 class BuildListSerializer(serializers.ModelSerializer):
     """
     Build list serializer (MVP).
@@ -359,6 +495,7 @@ class BuildDetailSerializer(serializers.ModelSerializer):
     weapon = serializers.SerializerMethodField()
     charm = CharmMiniSerializer(read_only=True)
     armor_pieces = BuildArmorPieceSerializer(many=True, read_only=True)
+    decorations = BuildDecorationSerializer(many=True, read_only=True)
 
     class Meta:
         model = Build
@@ -369,6 +506,7 @@ class BuildDetailSerializer(serializers.ModelSerializer):
             "weapon",
             "charm",
             "armor_pieces",
+            "decorations",
             "created_at",
             "updated_at",
         ]
@@ -395,12 +533,15 @@ class BuildCreateUpdateSerializer(serializers.ModelSerializer):
     """
     Build create/update serializer (MVP).
     - armor_pieces uses replace semantics
+    - decorations uses replace semantics
     - charm_id is optional and supports null to unset
     """
 
     weapon_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     charm_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+
     armor_pieces = BuildArmorPieceSerializer(many=True, required=False)
+    decorations = BuildDecorationSerializer(many=True, required=False)
 
     class Meta:
         model = Build
@@ -411,6 +552,7 @@ class BuildCreateUpdateSerializer(serializers.ModelSerializer):
             "weapon_id",
             "charm_id",
             "armor_pieces",
+            "decorations",
             "created_at",
             "updated_at",
         ]
@@ -418,6 +560,8 @@ class BuildCreateUpdateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         armor_pieces_data = validated_data.pop("armor_pieces", [])
+        decorations_data = validated_data.pop("decorations", [])
+
         weapon_id = validated_data.pop("weapon_id", None)
         charm_id = validated_data.pop("charm_id", None)
 
@@ -437,10 +581,24 @@ class BuildCreateUpdateSerializer(serializers.ModelSerializer):
                     armor_id=armor_id,
                 )
 
+        for d in decorations_data:
+            slot = d.get("slot")
+            socket_index = d.get("socket_index")
+            decoration_id = d.get("decoration_id")
+            if slot and socket_index and decoration_id:
+                BuildDecoration.objects.create(
+                    build=build,
+                    slot=slot,
+                    socket_index=socket_index,
+                    decoration_id=decoration_id,
+                )
+
         return build
 
     def update(self, instance, validated_data):
         armor_pieces_data = validated_data.pop("armor_pieces", None)
+        decorations_data = validated_data.pop("decorations", None)
+
         weapon_id = validated_data.pop("weapon_id", None)
         charm_id = validated_data.pop("charm_id", None)
 
@@ -465,6 +623,20 @@ class BuildCreateUpdateSerializer(serializers.ModelSerializer):
                         build=instance,
                         slot=slot,
                         armor_id=armor_id,
+                    )
+
+        if decorations_data is not None:
+            BuildDecoration.objects.filter(build=instance).delete()
+            for d in decorations_data:
+                slot = d.get("slot")
+                socket_index = d.get("socket_index")
+                decoration_id = d.get("decoration_id")
+                if slot and socket_index and decoration_id:
+                    BuildDecoration.objects.create(
+                        build=instance,
+                        slot=slot,
+                        socket_index=socket_index,
+                        decoration_id=decoration_id,
                     )
 
         return instance

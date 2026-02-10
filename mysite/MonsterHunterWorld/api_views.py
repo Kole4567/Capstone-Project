@@ -2,7 +2,7 @@ from rest_framework import generics
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
-from .models import Monster, Weapon, Skill, Armor, Build, Charm
+from .models import Monster, Weapon, Skill, Armor, Build, Charm, Decoration
 from .serializers import (
     MonsterListSerializer,
     MonsterDetailSerializer,
@@ -17,6 +17,8 @@ from .serializers import (
     BuildStatsSerializer,
     CharmListSerializer,
     CharmDetailSerializer,
+    DecorationListSerializer,
+    DecorationDetailSerializer,
 )
 
 
@@ -270,7 +272,11 @@ class ArmorDetailView(generics.RetrieveAPIView):
 class CharmListView(generics.ListAPIView):
     serializer_class = CharmListSerializer
 
-    ALLOWED_ORDER_FIELDS = {"id", "name", "rarity", "external_id"}
+    ALLOWED_ORDER_FIELDS = {
+        "id",
+        "name",
+        "rarity",
+    }
 
     def get_queryset(self):
         queryset = Charm.objects.all()
@@ -279,11 +285,17 @@ class CharmListView(generics.ListAPIView):
         if name := params.get("name"):
             queryset = queryset.filter(name__icontains=name.strip())
 
-        if rarity := params.get("rarity"):
-            try:
-                queryset = queryset.filter(rarity=int(rarity))
-            except ValueError:
-                pass
+        for key, lookup in [
+            ("rarity", "rarity"),
+            ("min_rarity", "rarity__gte"),
+            ("max_rarity", "rarity__lte"),
+        ]:
+            val = params.get(key)
+            if val is not None:
+                try:
+                    queryset = queryset.filter(**{lookup: int(val)})
+                except ValueError:
+                    pass
 
         order_by = params.get("order_by")
         if order_by and order_by.lstrip("-") in self.ALLOWED_ORDER_FIELDS:
@@ -306,6 +318,61 @@ class CharmListPagedView(CharmListView):
 class CharmDetailView(generics.RetrieveAPIView):
     queryset = Charm.objects.all()
     serializer_class = CharmDetailSerializer
+    lookup_field = "id"
+
+
+# ==================================================
+# Decorations
+# ==================================================
+class DecorationListView(generics.ListAPIView):
+    serializer_class = DecorationListSerializer
+
+    ALLOWED_ORDER_FIELDS = {
+        "id",
+        "name",
+        "rarity",
+    }
+
+    def get_queryset(self):
+        queryset = Decoration.objects.all()
+        params = self.request.query_params
+
+        if name := params.get("name"):
+            queryset = queryset.filter(name__icontains=name.strip())
+
+        for key, lookup in [
+            ("rarity", "rarity"),
+            ("min_rarity", "rarity__gte"),
+            ("max_rarity", "rarity__lte"),
+        ]:
+            val = params.get(key)
+            if val is not None:
+                try:
+                    queryset = queryset.filter(**{lookup: int(val)})
+                except ValueError:
+                    pass
+
+        order_by = params.get("order_by")
+        if order_by and order_by.lstrip("-") in self.ALLOWED_ORDER_FIELDS:
+            queryset = queryset.order_by(order_by)
+        else:
+            queryset = queryset.order_by("id")
+
+        return queryset
+
+
+class DecorationLimitOffsetPagination(LimitOffsetPagination):
+    default_limit = 50
+    max_limit = 200
+
+
+class DecorationListPagedView(DecorationListView):
+    pagination_class = DecorationLimitOffsetPagination
+
+
+class DecorationDetailView(generics.RetrieveAPIView):
+    queryset = Decoration.objects.all()
+    serializer_class = DecorationDetailSerializer
     lookup_field = "id"
 
 
@@ -379,6 +446,8 @@ class BuildStatsView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         build = self.get_object()
 
+        # IMPORTANT:
+        # This MUST match BuildStatsSerializer contract in serializers.py
         data = {
             "build_id": build.id,
             "stats": {

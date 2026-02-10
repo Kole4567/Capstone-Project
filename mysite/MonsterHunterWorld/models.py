@@ -11,7 +11,6 @@ class Monster(models.Model):
 
     Design notes
     - Represents a large monster in Monster Hunter World.
-    - This is a core reference entity used across the API.
     - external_id comes from mhw-db and is treated as stable.
 
     Constraints
@@ -32,7 +31,7 @@ class Monster(models.Model):
 
 class MonsterWeakness(models.Model):
     """
-    Represents a monster’s elemental or status weakness.
+    Represents a monster's elemental or status weakness.
     """
 
     monster = models.ForeignKey(
@@ -234,6 +233,68 @@ class CharmSkill(models.Model):
 
 
 # ==================================================
+# Decorations
+# ==================================================
+class Decoration(models.Model):
+    """
+    Decoration model (MHW Decorations MVP).
+
+    Design notes
+    - mhw-db provides decorations with skills and rarity.
+    - external_id is the stable mhw-db id (unique).
+    - DecorationSkill is a join table to allow multiple skills per decoration.
+    """
+
+    external_id = models.IntegerField(unique=True)
+
+    name = models.CharField(max_length=200)
+    rarity = models.PositiveSmallIntegerField(default=1)
+
+    skills = models.ManyToManyField(
+        Skill,
+        through="DecorationSkill",
+        related_name="decorations",
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} (R{self.rarity})"
+
+
+class DecorationSkill(models.Model):
+    """
+    Join table between Decoration and Skill with a level.
+    """
+
+    decoration = models.ForeignKey(
+        Decoration,
+        on_delete=models.CASCADE,
+        related_name="decoration_skills",
+    )
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name="skill_decorations",
+    )
+
+    level = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["decoration", "skill"],
+                name="uniq_decorationskill_decoration_skill",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.decoration.name} - {self.skill.name} (Lv {self.level})"
+
+
+# ==================================================
 # Builds
 # ==================================================
 class Build(models.Model):
@@ -244,6 +305,7 @@ class Build(models.Model):
     - One weapon (optional)
     - Exactly one armor per slot (via BuildArmorPiece)
     - One charm (optional)
+    - Decorations are stored via BuildDecoration with a socket location
     """
 
     name = models.CharField(max_length=200)
@@ -321,3 +383,68 @@ class BuildArmorPiece(models.Model):
 
     def __str__(self):
         return f"{self.build.name} - {self.slot}: {self.armor.name}"
+
+
+class BuildDecoration(models.Model):
+    """
+    Join table between Build and Decoration for a specific socket location.
+
+    Stores:
+    - which slot (head/chest/gloves/waist/legs/weapon)
+    - which socket index (1..3)
+    - which decoration is inserted
+
+    Notes:
+    - Replace semantics are recommended at the serializer level:
+      delete all build decorations and recreate from input.
+    """
+
+    SLOT_HEAD = "head"
+    SLOT_CHEST = "chest"
+    SLOT_GLOVES = "gloves"
+    SLOT_WAIST = "waist"
+    SLOT_LEGS = "legs"
+    SLOT_WEAPON = "weapon"
+
+    SLOT_CHOICES = [
+        (SLOT_HEAD, "Head"),
+        (SLOT_CHEST, "Chest"),
+        (SLOT_GLOVES, "Gloves"),
+        (SLOT_WAIST, "Waist"),
+        (SLOT_LEGS, "Legs"),
+        (SLOT_WEAPON, "Weapon"),
+    ]
+
+    build = models.ForeignKey(
+        Build,
+        on_delete=models.CASCADE,
+        related_name="decorations",
+    )
+
+    slot = models.CharField(
+        max_length=20,
+        choices=SLOT_CHOICES,
+    )
+
+    socket_index = models.PositiveSmallIntegerField(default=1)
+
+    decoration = models.ForeignKey(
+        Decoration,
+        on_delete=models.CASCADE,
+        related_name="build_usages",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["build", "slot", "socket_index"],
+                name="uniq_builddecoration_build_slot_socketindex",
+            ),
+            models.CheckConstraint(
+                condition=Q(socket_index__gte=1) & Q(socket_index__lte=3),
+                name="chk_builddecoration_socket_index_1_3",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.build.name} - {self.slot}[{self.socket_index}]: {self.decoration.name}"
