@@ -9,8 +9,8 @@ API Version: v1
 This document describes the Monster Hunter World (MHW) Backend API.
 
 The purpose of this API is to provide structured Monster Hunter World game data
-(monsters, weaknesses, weapons, skills, armors, etc.) from our internal database
-for:
+(monsters, weaknesses, weapons, skills, armors, builds, etc.)
+from our internal database for:
 
 - Frontend UI rendering
 - Build recommendation algorithms
@@ -120,9 +120,17 @@ Step 8. Verify API Endpoints
 --------------------------------------------------
 
 - GET /api/v1/mhw/monsters/
+- GET /api/v1/mhw/monsters/paged/
 - GET /api/v1/mhw/weapons/
+- GET /api/v1/mhw/weapons/paged/
 - GET /api/v1/mhw/skills/
+- GET /api/v1/mhw/skills/paged/
 - GET /api/v1/mhw/armors/
+- GET /api/v1/mhw/armors/paged/
+- GET /api/v1/mhw/builds/
+- GET /api/v1/mhw/builds/paged/
+- GET /api/v1/mhw/builds/{id}/
+- GET /api/v1/mhw/builds/{id}/stats/
 
 --------------------------------------------------
 Step 9. Run Backend Tests (Recommended)
@@ -237,9 +245,31 @@ Fields:
 - skill (FK → Skill)
 - level (integer)
 
+--------------------------------------------------
+5.7 Build
+--------------------------------------------------
+
+Represents a user-created build.
+
+Fields:
+- id (integer)
+- name (string)
+- description (string)
+- weapon (optional reference to Weapon)
+- armor_pieces (0..N entries via BuildArmorPiece)
+- created_at (datetime)
+- updated_at (datetime)
+
 Notes:
-- Represents skill levels granted by a specific armor piece
-- Armor detail endpoints expose this as nested data
+- Build armor pieces are stored as slot → armor mapping
+  (head, chest, arms, waist, legs).
+
+--------------------------------------------------
+5.8 Build Stats (Calculated Results)
+--------------------------------------------------
+
+Build stats endpoint provides a computed view for a build.
+Currently the implementation is a placeholder, but the JSON response contract is fixed.
 
 ==================================================
 6. API Documentation (Swagger / OpenAPI)
@@ -295,11 +325,45 @@ GET /armors/
 GET /armors/paged/
 GET /armors/{id}/
 
-Optional Filters:
-- armor_type
-- min_rarity / max_rarity
-- min_defense
-- has_skill (future extension)
+--------------------------------------------------
+7.5 Builds
+--------------------------------------------------
+
+GET /builds/
+POST /builds/
+
+GET /builds/paged/
+GET /builds/{id}/
+PATCH /builds/{id}/
+PUT /builds/{id}/
+DELETE /builds/{id}/
+
+--------------------------------------------------
+7.6 Build Stats (Calculated View – Placeholder Contract)
+--------------------------------------------------
+
+GET /builds/{id}/stats/
+
+Response Contract (example):
+
+{
+  "build_id": 1,
+  "stats": {
+    "attack": { "raw": 0, "display": 0 },
+    "affinity": 0,
+    "element": { "type": null, "value": 0 },
+    "defense": 0,
+    "resistances": {
+      "fire": 0,
+      "water": 0,
+      "thunder": 0,
+      "ice": 0,
+      "dragon": 0
+    }
+  },
+  "skills": [],
+  "set_bonuses": []
+}
 
 ==================================================
 8. API Contract Rules
@@ -326,15 +390,18 @@ A: Run import_skills with --reset.
 Q: Armors list is empty?
 A: Run import_armors with --reset.
 
+Q: Why are some fields null?
+A: Some entities do not have elemental or conditional data.
+
 ==================================================
 10. Future Extensions
 ==================================================
 
-- Armor sets
 - Decorations
-- Build saving and sharing
-- Skill rank modifiers
-- Advanced build recommendation logic
+- Charms
+- Per-rank skill modifiers and conditional skill logic
+- Real build stat calculations (skills → stats)
+- Build sharing / voting
 
 ==================================================
 11. Contact

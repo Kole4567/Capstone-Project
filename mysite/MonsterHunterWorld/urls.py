@@ -23,11 +23,23 @@ from .api_views import (
     SkillDetailView,
 
     # ==================================================
-    # Armor
+    # Armors
     # ==================================================
     ArmorListView,
     ArmorListPagedView,
     ArmorDetailView,
+
+    # ==================================================
+    # Builds
+    # ==================================================
+    BuildListView,
+    BuildListPagedView,
+    BuildDetailView,
+
+    # ==================================================
+    # Build Stats (Placeholder)
+    # ==================================================
+    BuildStatsView,
 )
 
 urlpatterns = [
@@ -105,5 +117,33 @@ urlpatterns = [
         "api/v1/mhw/armors/<int:id>/",
         ArmorDetailView.as_view(),
         name="mhw-armor-detail",
+    ),
+
+    # ==================================================
+    # Builds
+    # ==================================================
+    path(
+        "api/v1/mhw/builds/",
+        BuildListView.as_view(),
+        name="mhw-build-list",
+    ),
+    path(
+        "api/v1/mhw/builds/paged/",
+        BuildListPagedView.as_view(),
+        name="mhw-build-list-paged",
+    ),
+    path(
+        "api/v1/mhw/builds/<int:id>/",
+        BuildDetailView.as_view(),
+        name="mhw-build-detail",
+    ),
+
+    # ==================================================
+    # Build Stats (Placeholder)
+    # ==================================================
+    path(
+        "api/v1/mhw/builds/<int:id>/stats/",
+        BuildStatsView.as_view(),
+        name="mhw-build-stats",
     ),
 ]
