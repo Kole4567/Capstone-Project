@@ -2,7 +2,7 @@ from rest_framework import generics
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
-from .models import Monster, Weapon, Skill, Armor, Build
+from .models import Monster, Weapon, Skill, Armor, Build, Charm
 from .serializers import (
     MonsterListSerializer,
     MonsterDetailSerializer,
@@ -15,6 +15,8 @@ from .serializers import (
     BuildListSerializer,
     BuildDetailSerializer,
     BuildStatsSerializer,
+    CharmListSerializer,
+    CharmDetailSerializer,
 )
 
 
@@ -263,6 +265,51 @@ class ArmorDetailView(generics.RetrieveAPIView):
 
 
 # ==================================================
+# Charms
+# ==================================================
+class CharmListView(generics.ListAPIView):
+    serializer_class = CharmListSerializer
+
+    ALLOWED_ORDER_FIELDS = {"id", "name", "rarity", "external_id"}
+
+    def get_queryset(self):
+        queryset = Charm.objects.all()
+        params = self.request.query_params
+
+        if name := params.get("name"):
+            queryset = queryset.filter(name__icontains=name.strip())
+
+        if rarity := params.get("rarity"):
+            try:
+                queryset = queryset.filter(rarity=int(rarity))
+            except ValueError:
+                pass
+
+        order_by = params.get("order_by")
+        if order_by and order_by.lstrip("-") in self.ALLOWED_ORDER_FIELDS:
+            queryset = queryset.order_by(order_by)
+        else:
+            queryset = queryset.order_by("id")
+
+        return queryset
+
+
+class CharmLimitOffsetPagination(LimitOffsetPagination):
+    default_limit = 50
+    max_limit = 200
+
+
+class CharmListPagedView(CharmListView):
+    pagination_class = CharmLimitOffsetPagination
+
+
+class CharmDetailView(generics.RetrieveAPIView):
+    queryset = Charm.objects.all()
+    serializer_class = CharmDetailSerializer
+    lookup_field = "id"
+
+
+# ==================================================
 # Builds
 # ==================================================
 class BuildListView(generics.ListCreateAPIView):
@@ -325,14 +372,13 @@ class BuildStatsView(generics.RetrieveAPIView):
     Placeholder endpoint for calculated build results.
     (No real calculations yet, but response matches the final contract)
     """
+
     queryset = Build.objects.all()
     lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
         build = self.get_object()
 
-        # IMPORTANT:
-        # This MUST match BuildStatsSerializer contract in serializers.py
         data = {
             "build_id": build.id,
             "stats": {

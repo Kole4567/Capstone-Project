@@ -30,6 +30,13 @@ from .api_views import (
     ArmorDetailView,
 
     # ==================================================
+    # Charms
+    # ==================================================
+    CharmListView,
+    CharmListPagedView,
+    CharmDetailView,
+
+    # ==================================================
     # Builds
     # ==================================================
     BuildListView,
@@ -117,6 +124,25 @@ urlpatterns = [
         "api/v1/mhw/armors/<int:id>/",
         ArmorDetailView.as_view(),
         name="mhw-armor-detail",
+    ),
+
+    # ==================================================
+    # Charms
+    # ==================================================
+    path(
+        "api/v1/mhw/charms/",
+        CharmListView.as_view(),
+        name="mhw-charm-list",
+    ),
+    path(
+        "api/v1/mhw/charms/paged/",
+        CharmListPagedView.as_view(),
+        name="mhw-charm-list-paged",
+    ),
+    path(
+        "api/v1/mhw/charms/<int:id>/",
+        CharmDetailView.as_view(),
+        name="mhw-charm-detail",
     ),
 
     # ==================================================

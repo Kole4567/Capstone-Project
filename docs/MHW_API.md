@@ -9,7 +9,7 @@ API Version: v1
 This document describes the Monster Hunter World (MHW) Backend API.
 
 The purpose of this API is to provide structured Monster Hunter World game data
-(monsters, weaknesses, weapons, skills, armors, builds, etc.)
+(monsters, weaknesses, weapons, skills, armors, charms, builds, etc.)
 from our internal database for:
 
 - Frontend UI rendering
@@ -110,13 +110,34 @@ Notes:
 - ArmorSkill join rows are rebuilt per armor to ensure consistency.
 
 --------------------------------------------------
-Step 7. Run Server
+Step 7. Import Charm Data
+--------------------------------------------------
+
+Charm data is retrieved from mhw-db and imported into the internal database.
+
+Step 7.1 Download charms JSON from mhw-db:
+- curl -L "https://mhw-db.com/charms" -o data/mhw_charms_raw.json
+
+Step 7.2 Import charms into the database:
+Required (first-time setup only):
+- python manage.py import_charms --path data/mhw_charms_raw.json --reset
+
+Optional (re-import without reset is safe):
+- python manage.py import_charms --path data/mhw_charms_raw.json
+
+Notes:
+- mhw-db returns charms in a "ranks" structure.
+- The import expands each rank into a separate internal Charm row.
+  This makes Build linking and future stat calculation simpler and deterministic.
+
+--------------------------------------------------
+Step 8. Run Server
 --------------------------------------------------
 
 - python manage.py runserver
 
 --------------------------------------------------
-Step 8. Verify API Endpoints
+Step 9. Verify API Endpoints
 --------------------------------------------------
 
 - GET /api/v1/mhw/monsters/
@@ -127,13 +148,16 @@ Step 8. Verify API Endpoints
 - GET /api/v1/mhw/skills/paged/
 - GET /api/v1/mhw/armors/
 - GET /api/v1/mhw/armors/paged/
+- GET /api/v1/mhw/charms/
+- GET /api/v1/mhw/charms/paged/
+- GET /api/v1/mhw/charms/{id}/
 - GET /api/v1/mhw/builds/
 - GET /api/v1/mhw/builds/paged/
 - GET /api/v1/mhw/builds/{id}/
 - GET /api/v1/mhw/builds/{id}/stats/
 
 --------------------------------------------------
-Step 9. Run Backend Tests (Recommended)
+Step 10. Run Backend Tests (Recommended)
 --------------------------------------------------
 
 - python manage.py test MonsterHunterWorld
@@ -154,7 +178,7 @@ Key Design Decisions:
 - Per-entity transaction isolation
 - In-memory deduplication before database insertion
 - Deduplication uses the same unique keys as the database schema
-- Child records (weaknesses, armor skills) are replaced per parent entity
+- Child records (weaknesses, armor skills, charm skills) are replaced per parent entity
 
 ==================================================
 5. Core Data Models (Conceptual)
@@ -246,7 +270,34 @@ Fields:
 - level (integer)
 
 --------------------------------------------------
-5.7 Build
+5.7 Charm
+--------------------------------------------------
+
+Represents a single charm rank (expanded from mhw-db ranks).
+
+Fields:
+- id (integer)
+- external_id (integer, unique): derived from mhw-db charm id + rank level
+- name (string): includes rank level suffix (e.g., "Attack Charm Lv 2")
+- rarity (integer, optional)
+
+Notes:
+- mhw-db represents charms as a base charm with multiple ranks.
+- Internally, each rank is stored as one Charm row for stable Build linking.
+
+--------------------------------------------------
+5.8 CharmSkill
+--------------------------------------------------
+
+Join table between Charm and Skill.
+
+Fields:
+- charm (FK → Charm)
+- skill (FK → Skill)
+- level (integer)
+
+--------------------------------------------------
+5.9 Build
 --------------------------------------------------
 
 Represents a user-created build.
@@ -256,6 +307,7 @@ Fields:
 - name (string)
 - description (string)
 - weapon (optional reference to Weapon)
+- charm (optional reference to Charm)
 - armor_pieces (0..N entries via BuildArmorPiece)
 - created_at (datetime)
 - updated_at (datetime)
@@ -263,9 +315,10 @@ Fields:
 Notes:
 - Build armor pieces are stored as slot → armor mapping
   (head, chest, arms, waist, legs).
+- Build charm is a direct FK to the selected Charm rank.
 
 --------------------------------------------------
-5.8 Build Stats (Calculated Results)
+5.10 Build Stats (Calculated Results)
 --------------------------------------------------
 
 Build stats endpoint provides a computed view for a build.
@@ -326,7 +379,15 @@ GET /armors/paged/
 GET /armors/{id}/
 
 --------------------------------------------------
-7.5 Builds
+7.5 Charms
+--------------------------------------------------
+
+GET /charms/
+GET /charms/paged/
+GET /charms/{id}/
+
+--------------------------------------------------
+7.6 Builds
 --------------------------------------------------
 
 GET /builds/
@@ -338,8 +399,17 @@ PATCH /builds/{id}/
 PUT /builds/{id}/
 DELETE /builds/{id}/
 
+Build Write Fields:
+- weapon_id (integer, optional, nullable)
+- charm_id (integer, optional, nullable)
+- armor_pieces (array, optional)
+
+Notes:
+- Sending charm_id as null will unset the charm.
+- Omitting charm_id during PATCH/PUT keeps the existing charm.
+
 --------------------------------------------------
-7.6 Build Stats (Calculated View – Placeholder Contract)
+7.7 Build Stats (Calculated View – Placeholder Contract)
 --------------------------------------------------
 
 GET /builds/{id}/stats/
@@ -390,6 +460,9 @@ A: Run import_skills with --reset.
 Q: Armors list is empty?
 A: Run import_armors with --reset.
 
+Q: Charms list is empty?
+A: Run import_charms (download mhw-db charms JSON first).
+
 Q: Why are some fields null?
 A: Some entities do not have elemental or conditional data.
 
@@ -398,7 +471,6 @@ A: Some entities do not have elemental or conditional data.
 ==================================================
 
 - Decorations
-- Charms
 - Per-rank skill modifiers and conditional skill logic
 - Real build stat calculations (skills → stats)
 - Build sharing / voting
