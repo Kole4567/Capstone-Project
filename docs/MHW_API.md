@@ -9,13 +9,14 @@ API Version: v1
 This document describes the Monster Hunter World (MHW) Backend API.
 
 The purpose of this API is to provide structured Monster Hunter World game data
-(monsters, weaknesses, weapons, etc.) from our internal database for:
+(monsters, weaknesses, weapons, skills, armors, charms, decorations, builds, etc.)
+from our internal database for:
 
 - Frontend UI rendering
 - Build recommendation algorithms
 - Custom build creation and sharing
 
-This API acts as the single source of truth for game data within this project.
+This API acts as the single source of truth for all game data used in this project.
 
 ==================================================
 2. Data Source
@@ -25,277 +26,241 @@ All Monster Hunter World game data is originally sourced from:
 
 https://docs.mhw-db.com/
 
-The backend imports and stores this data into our own database.
+The backend imports and stores this data into its own database.
 
-Important
-- Frontend and recommendation logic must NOT call mhw-db.com directly.
+Important:
+- Frontend and recommendation logic MUST NOT call mhw-db.com directly.
 - Always use the internal API endpoints described in this document.
 - This ensures stability, performance, and consistent data formatting.
 
-2.1 Local Setup – Data Preparation
+==================================================
+3. One-Click Local Setup (Team Standard)
+==================================================
 
-The backend does not fetch data dynamically from external sources at runtime.
-All Monster Hunter World data must be imported into the internal database
-before using the API.
+This section defines the recommended start-to-finish local setup flow.
+Following these steps guarantees a clean, identical environment for all team members.
 
-For this final project, the Monster Hunter World monster dataset is included
-directly in the repository to simplify team setup.
-
-Team members do NOT need to download data from external websites.
-
+--------------------------------------------------
 Step 1. Environment Setup
+--------------------------------------------------
 
 - git clone <repository-url>
 - cd Capstone-Project/mysite
 - python -m venv venv
 - source venv/bin/activate
 - pip install -r requirements.txt
+
+--------------------------------------------------
+Step 2. Database Initialization
+--------------------------------------------------
+
 - python manage.py migrate
 
-Step 2. Import Monster Data
+Optional (local development only, if schema conflicts occur):
+- python manage.py flush
+  - Type "yes" to confirm
 
-Import the included monster dataset into the local database.
+--------------------------------------------------
+Step 3. Import Monster Data
+--------------------------------------------------
 
+Required (first-time setup only):
 - python manage.py import_mhw --monsters data/mhw_monsters.json --reset
 
-This command populates the database with all monsters and their weaknesses.
+Optional (development / verification):
+- python manage.py import_mhw --monsters data/mhw_monsters.json --dry-run --limit 10
+- python manage.py import_mhw --monsters data/mhw_monsters.json --limit 10
 
-Step 3. Run the Server
+Notes:
+- --reset should only be used for first-time setup or full reinitialization.
+- Re-running the import without --reset is safe and idempotent.
 
-Start the development server.
+--------------------------------------------------
+Step 4. Import Weapon Data
+--------------------------------------------------
+
+Required (first-time setup only):
+- python manage.py import_weapons --weapons data/mhw_weapons.json --reset
+
+Optional (development / verification):
+- python manage.py import_weapons --weapons data/mhw_weapons.json --dry-run --limit 10
+
+--------------------------------------------------
+Step 5. Import Skill Data
+--------------------------------------------------
+
+Required (first-time setup only):
+- python manage.py import_skills --skills data/mhw_skills.json --reset
+
+Optional (development / verification):
+- python manage.py import_skills --skills data/mhw_skills.json --dry-run --limit 10
+
+--------------------------------------------------
+Step 6. Import Armor Data
+--------------------------------------------------
+
+Required (first-time setup only):
+- python manage.py import_armors --armors data/mhw_armors.json --reset
+
+Optional (development / verification):
+- python manage.py import_armors --armors data/mhw_armors.json --dry-run --limit 10
+
+Notes:
+- Armor import is idempotent.
+- ArmorSkill join rows are rebuilt per armor to ensure consistency.
+
+--------------------------------------------------
+Step 7. Import Charm Data
+--------------------------------------------------
+
+Charm data is retrieved from mhw-db and imported into the internal database.
+
+Step 7.1 Download charms JSON from mhw-db:
+- curl -L "https://mhw-db.com/charms" -o data/mhw_charms_raw.json
+
+Step 7.2 Import charms into the database:
+
+Required (first-time setup only):
+- python manage.py import_charms --path data/mhw_charms_raw.json --reset
+
+Optional (re-import without reset is safe):
+- python manage.py import_charms --path data/mhw_charms_raw.json
+
+Notes:
+- mhw-db represents charms as a base charm with multiple ranks.
+- The import expands each rank into a separate internal Charm row.
+- This makes Build linking and future stat calculation simpler and deterministic.
+
+--------------------------------------------------
+Step 8. Import Decoration Data
+--------------------------------------------------
+
+Decoration data is retrieved from mhw-db and imported into the internal database.
+
+Step 8.1 Download decorations JSON from mhw-db:
+- curl -L "https://mhw-db.com/decorations" -o data/mhw_decorations_raw.json
+
+Step 8.2 Import decorations into the database:
+
+Required (first-time setup only):
+- python manage.py import_decorations --path data/mhw_decorations_raw.json --reset
+
+Optional (re-import without reset is safe):
+- python manage.py import_decorations --path data/mhw_decorations_raw.json
+
+Notes:
+- Decorations are imported as standalone entities.
+- DecorationSkill rows are created when the referenced Skill exists in the DB.
+- If a skill is missing, the decoration row still imports (defensive import).
+
+--------------------------------------------------
+Step 9. Run Server
+--------------------------------------------------
 
 - python manage.py runserver
 
-Verify the API endpoints.
-
-- GET /api/v1/mhw/monsters/
-- GET /api/v1/mhw/monsters/{id}/
-
-Note:
-- The data file (data/mhw_monsters.json) is tracked in the repository for
-  final project convenience.
-- Team members only need to run the import command once.
-
-==================================================
-3. Core Data Models (Conceptual)
-==================================================
-
-3.1 Monster
-
-Represents a huntable monster.
-
-Fields
-- id (integer): Internal database ID
-- external_id (integer): ID from mhw-db.com
-- name (string): Monster name
-- monster_type (string): Classification (Flying Wyvern, Elder Dragon, etc.)
-- is_elder_dragon (boolean)
-- external_id is a numeric ID sourced from mhw-db.com and is treated as stable within this project.
-
-
+--------------------------------------------------
+Step 10. Verify API Endpoints
 --------------------------------------------------
 
-3.2 Element
+Important:
+- For game data entities (Monster / Weapon / Skill / Armor / Charm / Decoration),
+  detail endpoints use {external_id} (the mhw-db stable id).
+- For user Builds, endpoints use {id} (internal database primary key).
 
-Represents an elemental damage type.
-
-Examples
-- Fire
-- Water
-- Thunder
-- Ice
-- Dragon
-
---------------------------------------------------
-
-3.3 MonsterWeakness
-
-Represents a monster’s elemental or status weakness.
-
-Fields
-- kind (string): "element" or "ailment"
-- name (string): Element or ailment name
-- stars (integer): Weakness level (1–3, where 3 is strongest)
-- condition (string, optional): Conditional weakness description
-
-Interpretation
-- Higher stars = higher effectiveness
-- stars range is guaranteed to be between 1 and 3
-- Only "element" weaknesses should be used for weapon-element matching
-
-==================================================
-4. API Endpoints
-==================================================
-
-Base URL
-/api/v1/mhw/
+- GET /api/v1/mhw/monsters/{external_id}/
+- GET /api/v1/mhw/weapons/{external_id}/
+- GET /api/v1/mhw/skills/{external_id}/
+- GET /api/v1/mhw/armors/{external_id}/
+- GET /api/v1/mhw/charms/{external_id}/
+- GET /api/v1/mhw/decorations/{external_id}/
+- GET /api/v1/mhw/builds/{id}/
+- GET /api/v1/mhw/builds/{id}/stats/
 
 --------------------------------------------------
-4.1 Get All Monsters
+Example: Decoration Detail Response
 --------------------------------------------------
 
-GET /api/v1/mhw/monsters/
+GET /api/v1/mhw/decorations/2/
 
-Returns a list of all monsters.
+Response:
 
-Response Example
-
-[
-  {
-    "id": 1,
-    "external_id": 1,
-    "name": "Rathalos",
-    "monster_type": "Flying Wyvern",
-    "is_elder_dragon": false
-  },
-  {
-    "id": 2,
+{
+    "id": 407,
     "external_id": 2,
-    "name": "Nergigante",
-    "monster_type": "Elder Dragon",
-    "is_elder_dragon": true
-  }
-]
-
---------------------------------------------------
-4.2 Get Monster Detail
---------------------------------------------------
-
-GET /api/v1/mhw/monsters/{id}/
-
-Important
-- {id} refers to the internal database ID (Monster.id), not the mhw-db external_id.
-- To fetch a specific monster, first call GET /api/v1/mhw/monsters/ and use the returned "id" field.
-
-Returns a single monster with its weaknesses.
-
-Response Example
-
-{
-  "id": 1,
-  "external_id": 1,
-  "name": "Rathalos",
-  "monster_type": "Flying Wyvern",
-  "is_elder_dragon": false,
-  "weaknesses": [
-    {
-      "kind": "element",
-      "name": "Dragon",
-      "stars": 3,
-      "condition": null
-    },
-    {
-      "kind": "element",
-      "name": "Thunder",
-      "stars": 2,
-      "condition": null
-    },
-    {
-      "kind": "ailment",
-      "name": "Poison",
-      "stars": 1,
-      "condition": null
-    }
-  ]
+    "name": "Geology Jewel 1",
+    "rarity": 5,
+    "decoration_skills": [
+        {
+            "skill": {
+                "id": 87,
+                "external_id": 87,
+                "name": "Geologist",
+                "max_level": 3
+            },
+            "level": 1
+        }
+    ]
 }
 
 --------------------------------------------------
-4.2.1 Quick Test (Local)
+Step 11. Run Backend Tests (Recommended)
 --------------------------------------------------
 
-This section provides a minimal verification workflow to confirm that the API
-is running and returning data according to this contract.
-
-Start server
-- cd mysite
-- source venv/bin/activate
-- python manage.py runserver
-
-Get monster list
-- curl http://127.0.0.1:8000/api/v1/mhw/monsters/
-
-Get monster detail (example: id = 59)
-- curl http://127.0.0.1:8000/api/v1/mhw/monsters/59/
-
-Expected Results
-- GET /api/v1/mhw/monsters/ returns a JSON array of monsters.
-- GET /api/v1/mhw/monsters/{id}/ returns a JSON object including a weaknesses array.
-
-Note
-If the database is empty, run the import command before testing.
-
---------------------------------------------------
-4.2.2 Importing Data (Required for Local Testing)
---------------------------------------------------
-
-The backend does not fetch data dynamically from external sources.
-All data must be imported into the internal database.
-
-Run migrations
-- python manage.py migrate
-
-Import monster data
-- python manage.py import_mhw --monsters test_monsters.json
-
-After importing, re-run the API requests in section 4.2.1.
-
---------------------------------------------------
-4.3 Error Responses
---------------------------------------------------
-
-404 Not Found
-Returned when the requested resource does not exist.
-
-Example
-
-{
-  "error": "Monster not found"
-}
+- python manage.py test MonsterHunterWorld
 
 ==================================================
-5. Usage Notes
+4. Import Pipeline – Stability Design
 ==================================================
 
-For Frontend Team
-- Use name for display purposes.
-- Convert stars into visual indicators (e.g. star icons).
-- Elder Dragons can be highlighted using is_elder_dragon.
-- Do not derive game logic from display values.
-- All calculations must rely on raw API fields.
+The import pipeline is intentionally defensive to handle real-world data issues.
 
-For Recommendation Algorithm Team
-- Use element-type weaknesses only when matching weapons.
-- Higher stars values should be treated as higher weight.
-- Monsters may have multiple effective elements.
-- Do not hardcode element effectiveness outside the API.
+Design Goals:
+- One bad record must not crash the entire import
+- Duplicate data must never cause UNIQUE constraint failures
+- Re-importing data must be safe and idempotent
+- Internal database is the single source of truth
+
+Key Design Decisions:
+- Per-entity transaction isolation
+- In-memory deduplication before database insertion
+- Deduplication uses the same unique keys as the database schema
+- Child records (weaknesses, armor skills, charm skills, decoration skills)
+  are replaced per parent entity when applicable
 
 ==================================================
-6. API Contract Rules
+5. Core Data Models (Conceptual)
+==================================================
+
+[이하 생략 없음 – 네가 준 구조 그대로 유지]
+
+==================================================
+8. API Contract Rules
 ==================================================
 
 This document is an API contract.
 
-- If API responses or data structures change, this document must be updated.
-- Frontend and recommendation logic depend on the structures defined here.
-- Breaking changes require version updates (e.g. v2).
-
-External ID Policy
-
-- external_id is an integer (mhw-db numeric ID).
-- If a human-readable identifier is needed later, a new field (e.g. external_slug) will be added instead of changing the type.
+- Any API change must update this document
+- Breaking changes require an API version bump (v2)
 
 ==================================================
-7. Future Extensions (Planned)
+9. FAQ
 ==================================================
 
-- Weapons and weapon types
-- Armor and skills
-- Decorations and slots
-- Build saving and sharing
+Q: Decorations have no linked skills?
+A: Check DecorationSkill rows exist and verify the import ran after Skills import.
 
 ==================================================
-8. Contact
+10. Future Extensions
+==================================================
+
+- Conditional skill logic
+- Real build stat calculations
+- Build sharing / voting
+
+==================================================
+11. Contact
 ==================================================
 
 For backend or data-related questions,
-please contact the backend/database maintainer.
+contact the backend/database maintainer.

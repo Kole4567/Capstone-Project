@@ -1,6 +1,217 @@
 import json
+
 from django.core.management.base import BaseCommand
+from django.db import transaction
+from django.utils.text import slugify
+
 from MonsterHunterWorld.models import Monster, MonsterWeakness
+
+
+def extract_monster_list(payload):
+    """
+    Return a list of monster dicts from various possible JSON shapes.
+
+    Supported input shapes:
+      1) [ {...}, {...}, ... ]  (plain array)
+      2) { "monsters": [ ... ] }
+      3) { "data": { "monsters": [ ... ] } }
+      4) { "results": [ ... ] }
+      5) { "data": [ ... ] }  (less common, but sometimes used)
+    """
+    if isinstance(payload, list):
+        return payload
+
+    if not isinstance(payload, dict):
+        return []
+
+    candidates = [
+        payload.get("monsters"),
+        (payload.get("data") or {}).get("monsters") if isinstance(payload.get("data"), dict) else None,
+        payload.get("results"),
+        payload.get("data") if isinstance(payload.get("data"), list) else None,
+    ]
+
+    for c in candidates:
+        if isinstance(c, list):
+            return c
+
+    return []
+
+
+def pick_external_id(monster_dict: dict):
+    """
+    Try multiple keys for external id because different sources might use different field names.
+    Returns an int if possible, otherwise None.
+
+    Common candidates:
+      - external_id
+      - id
+      - gameId
+      - monsterId
+    """
+    if not isinstance(monster_dict, dict):
+        return None
+
+    for k in ("external_id", "id", "gameId", "monsterId"):
+        v = monster_dict.get(k)
+        if v is None:
+            continue
+
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return None
+
+    return None
+
+
+def detect_mhw_db_format(monsters: list) -> bool:
+    """
+    Heuristic detection:
+    - mhw-db format weaknesses usually contain 'element' keys like:
+        weaknesses: [{ "element": "fire", "stars": 3, "condition": "..." }, ...]
+    - Our custom/test format uses:
+        weaknesses: [{ "kind": "...", "name": "...", ... }, ...]
+
+    We scan a small prefix of the list to decide a best-guess format.
+    """
+    for item in monsters[:10]:
+        if not isinstance(item, dict):
+            continue
+
+        w = item.get("weaknesses")
+        if isinstance(w, list) and w:
+            first = w[0]
+            if isinstance(first, dict) and ("element" in first or "stars" in first):
+                return True
+
+    return False
+
+
+def pick_kind(w: dict) -> str | None:
+    """
+    Weakness 'kind' might be stored under different keys depending on the source.
+    This function tries multiple keys in priority order.
+    """
+    if not isinstance(w, dict):
+        return None
+
+    return (
+        w.get("kind")
+        or w.get("type")
+        or w.get("element")
+        or w.get("category")
+    )
+
+
+def normalize_weaknesses_mhwdb(raw):
+    """
+    Normalize weaknesses for mhw-db style input.
+
+    Typical mhw-db shape:
+      weaknesses: [
+        { "element": "fire", "stars": 3, "condition": "..." },
+        ...
+      ]
+
+    We also tolerate:
+      - weaknesses as a dict (single item) -> wrap into list
+      - missing keys -> use defaults and/or skip invalid items
+      - weird types -> ignore safely
+    """
+    if raw is None:
+        return []
+
+    if isinstance(raw, dict):
+        raw = [raw]
+
+    if not isinstance(raw, list):
+        return []
+
+    out = []
+
+    for w in raw:
+        if not isinstance(w, dict):
+            continue
+
+        element = w.get("element") or w.get("name") or w.get("value")
+        stars = w.get("stars") or w.get("level") or 0
+        condition = w.get("condition") or w.get("when")
+
+        if not element:
+            continue
+
+        try:
+            stars_int = int(stars)
+        except (ValueError, TypeError):
+            stars_int = 0
+
+        out.append(
+            {
+                "kind": "element",
+                "name": str(element).title(),
+                "stars": stars_int,
+                "condition": condition,
+            }
+        )
+
+    return out
+
+
+def normalize_weaknesses_test(raw):
+    """
+    Normalize weaknesses for our custom/test style input.
+
+    Expected shape:
+      weaknesses: [
+        { "kind": "element", "name": "Fire", "stars": 3, "condition": null },
+        ...
+      ]
+
+    We also tolerate:
+      - weaknesses as a dict -> wrap into list
+      - missing kind -> try fallback keys or use "unknown"
+      - missing name -> try fallback keys
+      - weird types -> skip safely
+    """
+    if raw is None:
+        return []
+
+    if isinstance(raw, dict):
+        raw = [raw]
+
+    if not isinstance(raw, list):
+        return []
+
+    out = []
+
+    for w in raw:
+        if not isinstance(w, dict):
+            continue
+
+        kind = pick_kind(w) or "unknown"
+        name = w.get("name") or w.get("element") or w.get("value")
+        stars = w.get("stars") or w.get("level") or 0
+        condition = w.get("condition") or w.get("when")
+
+        if (not kind or kind == "unknown") and not name:
+            continue
+
+        try:
+            stars_int = int(stars)
+        except (ValueError, TypeError):
+            stars_int = 0
+
+        out.append(
+            {
+                "kind": str(kind),
+                "name": str(name) if name is not None else None,
+                "stars": stars_int,
+                "condition": condition,
+            }
+        )
+
+    return out
 
 
 class Command(BaseCommand):
@@ -13,137 +224,176 @@ class Command(BaseCommand):
             required=True,
             help="Path to monsters JSON file",
         )
+
         parser.add_argument(
             "--reset",
             action="store_true",
             help="Delete existing monsters and weaknesses before importing",
         )
 
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Parse only; do not write to DB",
+        )
+
+        parser.add_argument(
+            "--limit",
+            type=int,
+            default=0,
+            help="Limit number of monsters to import (0 = no limit)",
+        )
+
     def handle(self, *args, **options):
         path = options["monsters"]
         reset = options["reset"]
+        dry_run = options["dry_run"]
+        limit = options["limit"]
 
+        # Load JSON from file
         with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            payload = json.load(f)
 
-        if not isinstance(data, list):
-            self.stdout.write(self.style.ERROR("Invalid JSON: expected an array of monsters"))
+        # Extract monster list from supported payload shapes
+        monsters = extract_monster_list(payload)
+        if not monsters:
+            self.stdout.write(self.style.ERROR("Invalid JSON: could not find a list of monsters"))
             return
 
-        if reset:
-            MonsterWeakness.objects.all().delete()
-            Monster.objects.all().delete()
+        # Apply optional limit for quick testing
+        if limit and limit > 0:
+            monsters = monsters[:limit]
 
+        # Detect format (mhw-db vs test/custom) using heuristic
+        is_mhw_db_format = detect_mhw_db_format(monsters)
+
+        # Counters for summary output
         monsters_created = 0
         monsters_updated = 0
+        monsters_skipped = 0
+        monsters_failed = 0
         weaknesses_created = 0
 
-        # Detect format using the first item with weaknesses
-        is_mhw_db_format = False
-        for item in data[:5]:
-            w = item.get("weaknesses", [])
-            if isinstance(w, list) and len(w) > 0 and isinstance(w[0], dict) and "element" in w[0]:
-                is_mhw_db_format = True
-                break
+        # Reset in its own atomic block for safety
+        if reset and not dry_run:
+            try:
+                with transaction.atomic():
+                    MonsterWeakness.objects.all().delete()
+                    Monster.objects.all().delete()
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"[RESET] Failed: {e}"))
+                return
 
-        for m in data:
-            if is_mhw_db_format:
-                # mhw-db fields (common):
-                # - id (int)
-                # - name (str)
-                # - species (str) -> use as monster_type
-                # - weaknesses: [{element, stars, condition}, ...]
-                external_id = m.get("id")
-                name = m.get("name")
-                monster_type = m.get("species") or ""
-                is_elder_dragon = (monster_type.lower() == "elder dragon")
+        # Import each monster in its own transaction (fail-safe)
+        for idx, m in enumerate(monsters, start=1):
+            if not isinstance(m, dict):
+                monsters_skipped += 1
+                continue
 
-                if external_id is None or not name:
-                    continue
+            safe_name = m.get("name") or "Unknown"
 
-                monster_obj, created = Monster.objects.get_or_create(
-                    external_id=int(external_id),
-                    defaults={
-                        "name": name,
-                        "monster_type": monster_type,
-                        "is_elder_dragon": bool(is_elder_dragon),
-                    },
-                )
+            try:
+                with transaction.atomic():
+                    external_id = pick_external_id(m)
+                    name = m.get("name")
 
-                if created:
-                    monsters_created += 1
-                else:
-                    # Keep the internal DB in sync on re-imports
-                    changed = False
-                    if monster_obj.name != name:
-                        monster_obj.name = name
-                        changed = True
-                    if monster_obj.monster_type != monster_type:
-                        monster_obj.monster_type = monster_type
-                        changed = True
-                    if monster_obj.is_elder_dragon != bool(is_elder_dragon):
-                        monster_obj.is_elder_dragon = bool(is_elder_dragon)
-                        changed = True
-                    if changed:
-                        monster_obj.save()
-                        monsters_updated += 1
+                    # Format-specific mapping
+                    if is_mhw_db_format:
+                        monster_type = m.get("species") or m.get("monster_type") or ""
+                        is_elder_dragon = str(monster_type).lower() == "elder dragon"
+                        weaknesses_norm = normalize_weaknesses_mhwdb(m.get("weaknesses"))
+                    else:
+                        monster_type = m.get("monster_type", "") or m.get("species") or ""
+                        is_elder_dragon = bool(m.get("is_elder_dragon", False))
+                        weaknesses_norm = normalize_weaknesses_test(m.get("weaknesses"))
 
-                # Replace weaknesses on every import for clean sync
-                MonsterWeakness.objects.filter(monster=monster_obj).delete()
-
-                for w in m.get("weaknesses", []):
-                    element = w.get("element")
-                    stars = w.get("stars")
-                    condition = w.get("condition", None)
-
-                    if not element or stars is None:
+                    # Required fields check
+                    if external_id is None or not name:
+                        monsters_skipped += 1
                         continue
 
-                    MonsterWeakness.objects.create(
-                        monster=monster_obj,
-                        kind="element",
-                        name=str(element).title(),  # Fire, Water, Thunder...
-                        stars=int(stars),
-                        condition=condition,
+                    # Dry-run: count only, no DB writes
+                    if dry_run:
+                        monsters_created += 1
+                        weaknesses_created += len(weaknesses_norm)
+                        continue
+
+                    # Upsert monster record
+                    monster_obj, created = Monster.objects.update_or_create(
+                        external_id=int(external_id),
+                        defaults={
+                            "name": name,
+                            "monster_type": monster_type,
+                            "is_elder_dragon": bool(is_elder_dragon),
+                        },
                     )
-                    weaknesses_created += 1
 
-            else:
-                # Test format fields:
-                # - external_id, name, monster_type, is_elder_dragon
-                # - weaknesses: [{kind, name, stars, condition}, ...]
-                external_id = m.get("external_id")
-                name = m.get("name")
-                monster_type = m.get("monster_type", "")
-                is_elder_dragon = bool(m.get("is_elder_dragon", False))
+                    if created:
+                        monsters_created += 1
+                    else:
+                        monsters_updated += 1
 
-                if external_id is None or not name:
-                    continue
+                    # Replace weaknesses (keeps DB in sync with JSON)
+                    MonsterWeakness.objects.filter(monster=monster_obj).delete()
 
-                monster_obj, created = Monster.objects.get_or_create(
-                    external_id=int(external_id),
-                    defaults={
-                        "name": name,
-                        "monster_type": monster_type,
-                        "is_elder_dragon": is_elder_dragon,
-                    },
-                )
-                if created:
-                    monsters_created += 1
+                    # Dedupe weaknesses using the same key as the DB unique constraint:
+                    # (monster, kind, name, condition_key)
+                    # Keep the highest stars value when duplicates exist.
+                    seen_weakness: dict[tuple[str, str, str], tuple[int, str | None]] = {}
 
-                MonsterWeakness.objects.filter(monster=monster_obj).delete()
+                    for w in weaknesses_norm:
+                        kind = w.get("kind") or "unknown"
+                        w_name = w.get("name")
+                        cond = w.get("condition")
 
-                for w in m.get("weaknesses", []):
-                    MonsterWeakness.objects.create(
-                        monster=monster_obj,
-                        kind=w.get("kind"),
-                        name=w.get("name"),
-                        stars=w.get("stars"),
-                        condition=w.get("condition"),
-                    )
-                    weaknesses_created += 1
+                        # Normalize condition strings: strip whitespace, treat empty as None
+                        if isinstance(cond, str):
+                            cond = cond.strip() or None
 
+                        if not w_name:
+                            continue
+
+                        stars_raw = w.get("stars") or 0
+                        try:
+                            stars = int(stars_raw)
+                        except (ValueError, TypeError):
+                            stars = 0
+
+                        if stars <= 0:
+                            continue
+
+                        # condition_key should match how your model/DB represents condition uniqueness
+                        condition_key = slugify(cond) if cond else ""
+
+                        key = (str(kind), str(w_name), str(condition_key))
+                        if key not in seen_weakness or stars > seen_weakness[key][0]:
+                            seen_weakness[key] = (stars, cond)
+
+                    # Insert deduped weaknesses
+                    for (kind, w_name, condition_key), (stars, cond) in seen_weakness.items():
+                        MonsterWeakness.objects.create(
+                            monster=monster_obj,
+                            kind=kind,
+                            name=w_name,
+                            stars=stars,
+                            condition=cond,
+                            condition_key=condition_key,  # Requires this field on the model
+                        )
+                        weaknesses_created += 1
+
+            except Exception as e:
+                monsters_failed += 1
+                self.stdout.write(self.style.ERROR(f"[{idx}] {safe_name} import failed: {e}"))
+                continue
+
+        # Final summary output
         self.stdout.write(self.style.SUCCESS("Import completed."))
+        self.stdout.write(f"Format detected: {'mhw-db' if is_mhw_db_format else 'test/custom'}")
         self.stdout.write(f"Monsters created: {monsters_created}")
         self.stdout.write(f"Monsters updated: {monsters_updated}")
+        self.stdout.write(f"Monsters skipped: {monsters_skipped}")
+        self.stdout.write(f"Monsters failed: {monsters_failed}")
         self.stdout.write(f"Weaknesses created: {weaknesses_created}")
+
+        if dry_run:
+            self.stdout.write(self.style.WARNING("DRY-RUN mode: no DB changes were made."))

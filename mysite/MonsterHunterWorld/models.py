@@ -1,20 +1,27 @@
 from django.db import models
+from django.db.models import Q
 
 
+# ==================================================
+# Monsters
+# ==================================================
 class Monster(models.Model):
-    # ID from external data source (e.g. mhw-db)
-    external_id = models.IntegerField(unique=True, null=True, blank=True)
+    """
+    Monster model (core entity).
 
-    # Monster name
+    Design notes
+    - Represents a large monster in Monster Hunter World.
+    - external_id comes from mhw-db and is treated as stable.
+
+    Constraints
+    - external_id must be unique to allow safe re-imports (upsert behavior).
+    """
+
+    external_id = models.IntegerField(unique=True)
     name = models.CharField(max_length=120)
-
-    # Monster classification (e.g. Fanged Wyvern, Elder Dragon)
     monster_type = models.CharField(max_length=80)
-
-    # Whether the monster is an Elder Dragon
     is_elder_dragon = models.BooleanField(default=False)
 
-    # Timestamp fields
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -23,28 +30,484 @@ class Monster(models.Model):
 
 
 class MonsterWeakness(models.Model):
-    # Reference to the related monster
+    """
+    Represents a monster's elemental or status weakness.
+    """
+
     monster = models.ForeignKey(
         Monster,
         on_delete=models.CASCADE,
         related_name="weaknesses",
     )
 
-    # Weakness category (e.g. element, ailment)
     kind = models.CharField(max_length=40)
-
-    # Weakness name (e.g. Fire, Water, Poison)
     name = models.CharField(max_length=60)
-
-    # Effectiveness level (usually represented as stars, e.g. 1–3)
     stars = models.PositiveSmallIntegerField()
 
-    # Optional condition describing when the weakness applies
     condition = models.CharField(max_length=200, null=True, blank=True)
+    condition_key = models.CharField(max_length=200, default="", blank=True)
 
     class Meta:
-        # Prevent duplicate weaknesses for the same monster
-        unique_together = ("monster", "kind", "name", "condition")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["monster", "kind", "name", "condition_key"],
+                name="uniq_monsterweakness_monster_kind_name_conditionkey",
+            ),
+            models.CheckConstraint(
+                condition=Q(stars__gte=1) & Q(stars__lte=3),
+                name="chk_monsterweakness_stars_1_3",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.monster.name} - {self.kind}:{self.name} ({self.stars})"
+
+
+# ==================================================
+# Weapons
+# ==================================================
+class Weapon(models.Model):
+    """
+    Weapon model (MHW Weapons MVP).
+    """
+
+    external_id = models.IntegerField(unique=True)
+
+    name = models.CharField(max_length=200)
+    weapon_type = models.CharField(max_length=50)
+    rarity = models.PositiveSmallIntegerField()
+
+    attack_display = models.IntegerField(default=0)
+    attack_raw = models.IntegerField(default=0)
+
+    element = models.CharField(max_length=40, null=True, blank=True)
+    element_damage = models.IntegerField(null=True, blank=True)
+
+    affinity = models.SmallIntegerField(default=0)
+    elderseal = models.CharField(max_length=40, null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.weapon_type})"
+
+
+# ==================================================
+# Skills
+# ==================================================
+class Skill(models.Model):
+    """
+    Skill model (MHW Skills MVP).
+    """
+
+    external_id = models.IntegerField(unique=True)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+    max_level = models.PositiveSmallIntegerField(default=1)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} (Lv {self.max_level})"
+
+
+# ==================================================
+# Armor Sets / Set Bonuses
+# ==================================================
+class ArmorSet(models.Model):
+    """
+    ArmorSet model (Set Bonus grouping).
+
+    Design notes
+    - Represents a named armor set (e.g., 'Teostra', 'Nergigante', etc.).
+    - This is used for set bonus (tier) definitions.
+    - external_id is optional because source data may not provide a stable id.
+    """
+
+    external_id = models.IntegerField(null=True, blank=True, db_index=True)
+    name = models.CharField(max_length=200, unique=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class SetBonusTier(models.Model):
+    """
+    Defines a tier within an ArmorSet (e.g., 2-piece, 4-piece bonus).
+
+    Example:
+    - armor_set = "Teostra Technique"
+    - pieces_required = 3
+    - name = "Master's Touch"
+    """
+
+    armor_set = models.ForeignKey(
+        ArmorSet,
+        on_delete=models.CASCADE,
+        related_name="tiers",
+    )
+
+    pieces_required = models.PositiveSmallIntegerField(default=2)
+    name = models.CharField(max_length=200)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["armor_set", "pieces_required"],
+                name="uniq_setbonustier_armorset_pieces",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.armor_set.name} ({self.pieces_required}) - {self.name}"
+
+
+# ==================================================
+# Armor
+# ==================================================
+class Armor(models.Model):
+    """
+    Armor model (MHW Armor MVP).
+    """
+
+    external_id = models.IntegerField(unique=True)
+
+    armor_set = models.ForeignKey(
+        ArmorSet,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="armors",
+        help_text="Optional armor set mapping for set bonus tiers.",
+    )
+
+    name = models.CharField(max_length=200)
+    armor_type = models.CharField(max_length=40)
+    rarity = models.PositiveSmallIntegerField(default=1)
+
+    defense_base = models.PositiveSmallIntegerField(default=0)
+    defense_max = models.PositiveSmallIntegerField(default=0)
+    defense_augmented = models.PositiveSmallIntegerField(default=0)
+
+    slot_1 = models.PositiveSmallIntegerField(default=0)
+    slot_2 = models.PositiveSmallIntegerField(default=0)
+    slot_3 = models.PositiveSmallIntegerField(default=0)
+
+    skills = models.ManyToManyField(
+        Skill,
+        through="ArmorSkill",
+        related_name="armors",
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.armor_type})"
+
+
+class ArmorSkill(models.Model):
+    """
+    Join table between Armor and Skill with a level.
+    """
+
+    armor = models.ForeignKey(
+        Armor,
+        on_delete=models.CASCADE,
+        related_name="armor_skills",
+    )
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name="skill_armors",
+    )
+
+    level = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["armor", "skill"],
+                name="uniq_armorskill_armor_skill",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.armor.name} - {self.skill.name} (Lv {self.level})"
+
+
+# ==================================================
+# Charms
+# ==================================================
+class Charm(models.Model):
+    """
+    Charm model (MHW Charms MVP).
+
+    Design notes
+    - external_id comes from mhw-db and is treated as stable.
+    - We keep CharmSkill as a separate join table so a charm can grant multiple skills.
+    """
+
+    external_id = models.IntegerField(unique=True, db_index=True)
+    name = models.CharField(max_length=255)
+    rarity = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class CharmSkill(models.Model):
+    """
+    Join table between Charm and Skill with a level.
+    """
+
+    charm = models.ForeignKey(
+        Charm,
+        on_delete=models.CASCADE,
+        related_name="charm_skills",
+    )
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name="skill_charms",
+    )
+
+    level = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["charm", "skill"],
+                name="uniq_charmskill_charm_skill",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.charm.name} - {self.skill.name} (Lv {self.level})"
+
+
+# ==================================================
+# Decorations
+# ==================================================
+class Decoration(models.Model):
+    """
+    Decoration model (MHW Decorations MVP).
+
+    Design notes
+    - mhw-db provides decorations with skills and rarity.
+    - external_id is the stable mhw-db id (unique).
+    - DecorationSkill is a join table to allow multiple skills per decoration.
+    """
+
+    external_id = models.IntegerField(unique=True)
+
+    name = models.CharField(max_length=200)
+    rarity = models.PositiveSmallIntegerField(default=1)
+
+    skills = models.ManyToManyField(
+        Skill,
+        through="DecorationSkill",
+        related_name="decorations",
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} (R{self.rarity})"
+
+
+class DecorationSkill(models.Model):
+    """
+    Join table between Decoration and Skill with a level.
+    """
+
+    decoration = models.ForeignKey(
+        Decoration,
+        on_delete=models.CASCADE,
+        related_name="decoration_skills",
+    )
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name="skill_decorations",
+    )
+
+    level = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["decoration", "skill"],
+                name="uniq_decorationskill_decoration_skill",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.decoration.name} - {self.skill.name} (Lv {self.level})"
+
+
+# ==================================================
+# Builds
+# ==================================================
+class Build(models.Model):
+    """
+    Build model (MHW Builds MVP).
+
+    Represents a saved loadout:
+    - One weapon (optional)
+    - Exactly one armor per slot (via BuildArmorPiece)
+    - One charm (optional)
+    - Decorations are stored via BuildDecoration with a socket location
+    """
+
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+
+    weapon = models.ForeignKey(
+        Weapon,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="builds",
+    )
+
+    charm = models.ForeignKey(
+        Charm,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="builds",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class BuildArmorPiece(models.Model):
+    """
+    Join table between Build and Armor for a specific slot.
+
+    Enforces:
+    - One armor per slot per build
+    """
+
+    SLOT_HEAD = "head"
+    SLOT_CHEST = "chest"
+    SLOT_GLOVES = "gloves"
+    SLOT_WAIST = "waist"
+    SLOT_LEGS = "legs"
+
+    SLOT_CHOICES = [
+        (SLOT_HEAD, "Head"),
+        (SLOT_CHEST, "Chest"),
+        (SLOT_GLOVES, "Gloves"),
+        (SLOT_WAIST, "Waist"),
+        (SLOT_LEGS, "Legs"),
+    ]
+
+    build = models.ForeignKey(
+        Build,
+        on_delete=models.CASCADE,
+        related_name="armor_pieces",
+    )
+
+    slot = models.CharField(
+        max_length=20,
+        choices=SLOT_CHOICES,
+    )
+
+    armor = models.ForeignKey(
+        Armor,
+        on_delete=models.CASCADE,
+        related_name="build_usages",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["build", "slot"],
+                name="uniq_buildarmorpiece_build_slot",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.build.name} - {self.slot}: {self.armor.name}"
+
+
+class BuildDecoration(models.Model):
+    """
+    Join table between Build and Decoration for a specific socket location.
+
+    Stores:
+    - which slot (head/chest/gloves/waist/legs/weapon)
+    - which socket index (1..3)
+    - which decoration is inserted
+
+    Notes:
+    - Replace semantics are recommended at the serializer level:
+      delete all build decorations and recreate from input.
+    """
+
+    SLOT_HEAD = "head"
+    SLOT_CHEST = "chest"
+    SLOT_GLOVES = "gloves"
+    SLOT_WAIST = "waist"
+    SLOT_LEGS = "legs"
+    SLOT_WEAPON = "weapon"
+
+    SLOT_CHOICES = [
+        (SLOT_HEAD, "Head"),
+        (SLOT_CHEST, "Chest"),
+        (SLOT_GLOVES, "Gloves"),
+        (SLOT_WAIST, "Waist"),
+        (SLOT_LEGS, "Legs"),
+        (SLOT_WEAPON, "Weapon"),
+    ]
+
+    build = models.ForeignKey(
+        Build,
+        on_delete=models.CASCADE,
+        related_name="decorations",
+    )
+
+    slot = models.CharField(
+        max_length=20,
+        choices=SLOT_CHOICES,
+    )
+
+    socket_index = models.PositiveSmallIntegerField(default=1)
+
+    decoration = models.ForeignKey(
+        Decoration,
+        on_delete=models.CASCADE,
+        related_name="build_usages",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["build", "slot", "socket_index"],
+                name="uniq_builddecoration_build_slot_socketindex",
+            ),
+            models.CheckConstraint(
+                condition=Q(socket_index__gte=1) & Q(socket_index__lte=3),
+                name="chk_builddecoration_socket_index_1_3",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.build.name} - {self.slot}[{self.socket_index}]: {self.decoration.name}"
