@@ -33,20 +33,6 @@ class Monster(models.Model):
 class MonsterWeakness(models.Model):
     """
     Represents a monster’s elemental or status weakness.
-
-    Design notes
-    - Weaknesses are attached to monsters via FK.
-    - A monster may have multiple weaknesses of the same element
-      under different conditions.
-    - stars represent effectiveness (1–3).
-
-    Special handling
-    - condition is optional because mhw-db sometimes omits it.
-    - condition_key normalizes condition for uniqueness when condition is NULL.
-
-    Example
-    - Fire (stars=3, condition=None)
-    - Ice (stars=2, condition="when enraged")
     """
 
     monster = models.ForeignKey(
@@ -55,14 +41,11 @@ class MonsterWeakness(models.Model):
         related_name="weaknesses",
     )
 
-    kind = models.CharField(max_length=40)   # "element" or "ailment"
-    name = models.CharField(max_length=60)   # e.g. Fire, Poison
+    kind = models.CharField(max_length=40)
+    name = models.CharField(max_length=60)
     stars = models.PositiveSmallIntegerField()
 
     condition = models.CharField(max_length=200, null=True, blank=True)
-
-    # Normalized value used only for uniqueness
-    # Import code should set this consistently
     condition_key = models.CharField(max_length=200, default="", blank=True)
 
     class Meta:
@@ -76,11 +59,6 @@ class MonsterWeakness(models.Model):
                 name="chk_monsterweakness_stars_1_3",
             ),
         ]
-        indexes = [
-            models.Index(fields=["monster", "kind"], name="idx_weak_monster_kind"),
-            models.Index(fields=["kind", "name"], name="idx_weak_kind_name"),
-            models.Index(fields=["condition_key"], name="idx_weak_condition_key"),
-        ]
 
     def __str__(self):
         return f"{self.monster.name} - {self.kind}:{self.name} ({self.stars})"
@@ -92,15 +70,6 @@ class MonsterWeakness(models.Model):
 class Weapon(models.Model):
     """
     Weapon model (MHW Weapons MVP).
-
-    Design goals
-    - Support list/detail endpoints with minimal but useful fields.
-    - Enable filtering by type, element, rarity, and attack.
-    - Keep schema easy to extend later (slots, sharpness, crafting, etc.).
-
-    Notes
-    - attack_display and attack_raw are stored separately.
-    - element is optional because many weapons are raw-only.
     """
 
     external_id = models.IntegerField(unique=True)
@@ -121,13 +90,6 @@ class Weapon(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        indexes = [
-            models.Index(fields=["weapon_type"], name="idx_weapon_type"),
-            models.Index(fields=["element"], name="idx_weapon_element"),
-            models.Index(fields=["rarity"], name="idx_weapon_rarity"),
-        ]
-
     def __str__(self):
         return f"{self.name} ({self.weapon_type})"
 
@@ -138,15 +100,6 @@ class Weapon(models.Model):
 class Skill(models.Model):
     """
     Skill model (MHW Skills MVP).
-
-    Design goals
-    - Represent passive skills used in builds.
-    - Store only high-level description and max level for MVP.
-    - Allow reuse by weapons, armor, and future decorations.
-
-    Notes
-    - max_level is derived from mhw-db ranks data.
-    - Per-rank modifiers are intentionally excluded for now.
     """
 
     external_id = models.IntegerField(unique=True)
@@ -156,12 +109,6 @@ class Skill(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["name"], name="idx_skill_name"),
-            models.Index(fields=["max_level"], name="idx_skill_max_level"),
-        ]
 
     def __str__(self):
         return f"{self.name} (Lv {self.max_level})"
@@ -173,36 +120,22 @@ class Skill(models.Model):
 class Armor(models.Model):
     """
     Armor model (MHW Armor MVP).
-
-    Design goals
-    - Represent a single armor piece (not a set).
-    - Store defense values and decoration slots.
-    - Attach skills with levels via a through model.
-
-    Notes about mhw-db
-    - Armor includes defense values and a list of skills with levels.
-    - MVP stores:
-      * base/max/augmented defense
-      * up to 3 decoration slots
-      * skill + level pairs
     """
 
     external_id = models.IntegerField(unique=True)
 
     name = models.CharField(max_length=200)
-    armor_type = models.CharField(max_length=40)  # head, chest, gloves, waist, legs
+    armor_type = models.CharField(max_length=40)
     rarity = models.PositiveSmallIntegerField(default=1)
 
     defense_base = models.PositiveSmallIntegerField(default=0)
     defense_max = models.PositiveSmallIntegerField(default=0)
     defense_augmented = models.PositiveSmallIntegerField(default=0)
 
-    # Decoration slots (rank/level, 0 = empty)
     slot_1 = models.PositiveSmallIntegerField(default=0)
     slot_2 = models.PositiveSmallIntegerField(default=0)
     slot_3 = models.PositiveSmallIntegerField(default=0)
 
-    # Skills are linked via ArmorSkill to store level
     skills = models.ManyToManyField(
         Skill,
         through="ArmorSkill",
@@ -213,28 +146,13 @@ class Armor(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        indexes = [
-            models.Index(fields=["armor_type"], name="idx_armor_type"),
-            models.Index(fields=["rarity"], name="idx_armor_rarity"),
-            models.Index(fields=["defense_base"], name="idx_armor_defense_base"),
-        ]
-
     def __str__(self):
         return f"{self.name} ({self.armor_type})"
 
 
 class ArmorSkill(models.Model):
     """
-    Through model connecting Armor and Skill with a level.
-
-    Why this exists
-    - Armor skills in MHW always have a level.
-    - ManyToManyField alone cannot store extra attributes.
-
-    Rules
-    - One armor piece can grant a given skill only once.
-    - level must be >= 1.
+    Join table between Armor and Skill with a level.
     """
 
     armor = models.ForeignKey(
@@ -256,15 +174,88 @@ class ArmorSkill(models.Model):
                 fields=["armor", "skill"],
                 name="uniq_armorskill_armor_skill",
             ),
-            models.CheckConstraint(
-                condition=Q(level__gte=1),
-                name="chk_armorskill_level_gte_1",
-            ),
-        ]
-        indexes = [
-            models.Index(fields=["skill", "level"], name="idx_armorskill_skill_level"),
-            models.Index(fields=["armor"], name="idx_armorskill_armor"),
         ]
 
     def __str__(self):
         return f"{self.armor.name} - {self.skill.name} (Lv {self.level})"
+
+
+# ==================================================
+# Builds
+# ==================================================
+class Build(models.Model):
+    """
+    Build model (MHW Builds MVP).
+
+    Represents a saved loadout:
+    - One weapon (optional)
+    - Exactly one armor per slot (via BuildArmorPiece)
+    """
+
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+
+    weapon = models.ForeignKey(
+        Weapon,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="builds",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+class BuildArmorPiece(models.Model):
+    """
+    Join table between Build and Armor for a specific slot.
+
+    Enforces:
+    - One armor per slot per build
+    """
+
+    SLOT_HEAD = "head"
+    SLOT_CHEST = "chest"
+    SLOT_GLOVES = "gloves"
+    SLOT_WAIST = "waist"
+    SLOT_LEGS = "legs"
+
+    SLOT_CHOICES = [
+        (SLOT_HEAD, "Head"),
+        (SLOT_CHEST, "Chest"),
+        (SLOT_GLOVES, "Gloves"),
+        (SLOT_WAIST, "Waist"),
+        (SLOT_LEGS, "Legs"),
+    ]
+
+    build = models.ForeignKey(
+        Build,
+        on_delete=models.CASCADE,
+        related_name="armor_pieces",
+    )
+
+    slot = models.CharField(
+        max_length=20,
+        choices=SLOT_CHOICES,
+    )
+
+    armor = models.ForeignKey(
+        Armor,
+        on_delete=models.CASCADE,
+        related_name="build_usages",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["build", "slot"],
+                name="uniq_buildarmorpiece_build_slot",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.build.name} - {self.slot}: {self.armor.name}"
