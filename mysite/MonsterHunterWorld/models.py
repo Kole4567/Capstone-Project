@@ -9,11 +9,11 @@ class Monster(models.Model):
     """
     Monster model (core entity).
 
-    Design notes
+    Design notes:
     - Represents a large monster in Monster Hunter World.
     - external_id comes from mhw-db and is treated as stable.
 
-    Constraints
+    Constraints:
     - external_id must be unique to allow safe re-imports (upsert behavior).
     """
 
@@ -119,6 +119,11 @@ class Skill(models.Model):
 class Armor(models.Model):
     """
     Armor model (MHW Armor MVP).
+
+    IMPORTANT (Build Stats roadmap):
+    - To compute MHW-like "total resistances" and "total defense" from equipped armor,
+      we must store per-piece elemental resistances on Armor.
+    - mhw-db armor payload includes: resistances { fire, water, thunder, ice, dragon }
     """
 
     external_id = models.IntegerField(unique=True)
@@ -134,6 +139,30 @@ class Armor(models.Model):
     slot_1 = models.PositiveSmallIntegerField(default=0)
     slot_2 = models.PositiveSmallIntegerField(default=0)
     slot_3 = models.PositiveSmallIntegerField(default=0)
+
+    # ==================================================
+    # Elemental Resistances (MHW Armor piece stats)
+    # ==================================================
+    # These are per-armor-piece values and should be populated from mhw-db armor.resistances.
+    # We keep them as simple integers to allow easy summation in BuildStatsView.
+    res_fire = models.SmallIntegerField(default=0)
+    res_water = models.SmallIntegerField(default=0)
+    res_thunder = models.SmallIntegerField(default=0)
+    res_ice = models.SmallIntegerField(default=0)
+    res_dragon = models.SmallIntegerField(default=0)
+
+    # ==================================================
+    # Armor Set / Set Bonus (Domain C - Minimal fields)
+    # ==================================================
+    # mhw-db: armorSet.id / armorSet.name / armorSet.rank / armorSet.bonus
+    armor_set_external_id = models.IntegerField(null=True, blank=True, db_index=True)
+    armor_set_name = models.CharField(
+        max_length=120, null=True, blank=True, db_index=True
+    )
+    armor_set_rank = models.CharField(max_length=40, null=True, blank=True)
+
+    # mhw-db armorSet.bonus -> set bonus external id (can be null)
+    armor_set_bonus_external_id = models.IntegerField(null=True, blank=True, db_index=True)
 
     skills = models.ManyToManyField(
         Skill,
@@ -180,13 +209,76 @@ class ArmorSkill(models.Model):
 
 
 # ==================================================
+# Set Bonuses (Domain C - Skill Granting)
+# ==================================================
+class SetBonus(models.Model):
+    """
+    Represents a set bonus entity.
+
+    Source:
+    - mhw-db armor sets endpoint: GET https://mhw-db.com/armor/sets
+    - armorSet.bonus.id and armorSet.bonus.name
+    """
+
+    external_id = models.IntegerField(unique=True, db_index=True)
+    name = models.CharField(max_length=255)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} (#{self.external_id})"
+
+
+class SetBonusRank(models.Model):
+    """
+    Threshold rank within a SetBonus.
+
+    Example:
+    - pieces=2 -> grants skill X level 1
+    - pieces=4 -> grants another skill, etc.
+
+    Notes:
+    - We store the granted skill as a FK to Skill (based on skill external_id).
+    """
+
+    set_bonus = models.ForeignKey(
+        SetBonus,
+        on_delete=models.CASCADE,
+        related_name="ranks",
+    )
+
+    pieces = models.PositiveSmallIntegerField(default=2)
+
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name="set_bonus_ranks",
+    )
+
+    level = models.PositiveSmallIntegerField(default=1)
+    description = models.TextField(blank=True, default="")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["set_bonus", "pieces", "skill"],
+                name="uniq_setbonusrank_setbonus_pieces_skill",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.set_bonus.name} - {self.pieces}p: {self.skill.name} Lv{self.level}"
+
+
+# ==================================================
 # Charms
 # ==================================================
 class Charm(models.Model):
     """
     Charm model (MHW Charms MVP).
 
-    Design notes
+    Design notes:
     - external_id comes from mhw-db and is treated as stable.
     - We keep CharmSkill as a separate join table so a charm can grant multiple skills.
     """
@@ -239,7 +331,7 @@ class Decoration(models.Model):
     """
     Decoration model (MHW Decorations MVP).
 
-    Design notes
+    Design notes:
     - mhw-db provides decorations with skills and rarity.
     - external_id is the stable mhw-db id (unique).
     - DecorationSkill is a join table to allow multiple skills per decoration.

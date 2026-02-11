@@ -1,448 +1,435 @@
 Monster Hunter World API Documentation
-
-API Version: v1
+API Version: v1 (Implementation-Aligned)
 
 ==================================================
 1. Overview
 ==================================================
 
-This document describes the Monster Hunter World (MHW) Backend API.
+This document describes the fully implemented Monster Hunter World (MHW) Backend API.
 
-The purpose of this API is to provide structured Monster Hunter World game data
-(monsters, weaknesses, weapons, skills, armors, charms, decorations, builds, etc.)
-from our internal database for:
+This backend is NOT a thin wrapper over mhw-db.
+It is an internally controlled, normalized, defensive data system.
 
-- Frontend UI rendering
-- Build recommendation algorithms
-- Custom build creation and sharing
+The backend:
 
-This API acts as the single source of truth for all game data used in this project.
+- Imports mhw-db raw JSON
+- Normalizes data into internal schema
+- Rebuilds relational joins (ArmorSkill, CharmSkill, etc.)
+- Provides stable API contracts
+- Computes Build Stats internally
+- Supports external_id-based linking (MHW-style)
 
-==================================================
-2. Data Source
-==================================================
+This API is the SINGLE SOURCE OF TRUTH.
 
-All Monster Hunter World game data is originally sourced from:
-
-https://docs.mhw-db.com/
-
-The backend imports and stores this data into its own database.
-
-Important:
-- Frontend and recommendation logic MUST NOT call mhw-db.com directly.
-- Always use the internal API endpoints described in this document.
-- This ensures stability, performance, and consistent data formatting.
+Frontend and recommendation logic MUST ONLY use this backend.
 
 ==================================================
-3. One-Click Local Setup (Team Standard)
+2. Architecture Philosophy
 ==================================================
 
-This section defines the recommended start-to-finish local setup flow.
-Following these steps guarantees a clean, identical environment for all team members.
+This backend is designed around:
 
---------------------------------------------------
-Step 1. Environment Setup
---------------------------------------------------
+1) Idempotent imports
+2) Defensive JSON parsing
+3) Replace semantics for child rows
+4) Stable API contracts
+5) Internal computation layer for builds
 
-- git clone <repository-url>
-- cd Capstone-Project/mysite
-- python -m venv venv
-- source venv/bin/activate
-- pip install -r requirements.txt
-
---------------------------------------------------
-Step 2. Database Initialization
---------------------------------------------------
-
-- python manage.py migrate
-
-Optional (local development only, if schema conflicts occur):
-- python manage.py flush
-  - Type "yes" to confirm
-
---------------------------------------------------
-Step 3. Import Monster Data
---------------------------------------------------
-
-Required (first-time setup only):
-- python manage.py import_mhw --monsters data/mhw_monsters.json --reset
-
-Optional (development / verification):
-- python manage.py import_mhw --monsters data/mhw_monsters.json --dry-run --limit 10
-- python manage.py import_mhw --monsters data/mhw_monsters.json --limit 10
-
-Notes:
-- --reset should only be used for first-time setup or full reinitialization.
-- Re-running the import without --reset is safe and idempotent.
-
---------------------------------------------------
-Step 4. Import Weapon Data
---------------------------------------------------
-
-Required (first-time setup only):
-- python manage.py import_weapons --weapons data/mhw_weapons.json --reset
-
-Optional (development / verification):
-- python manage.py import_weapons --weapons data/mhw_weapons.json --dry-run --limit 10
-
---------------------------------------------------
-Step 5. Import Skill Data
---------------------------------------------------
-
-Required (first-time setup only):
-- python manage.py import_skills --skills data/mhw_skills.json --reset
-
-Optional (development / verification):
-- python manage.py import_skills --skills data/mhw_skills.json --dry-run --limit 10
-
---------------------------------------------------
-Step 6. Import Armor Data
---------------------------------------------------
-
-Required (first-time setup only):
-- python manage.py import_armors --armors data/mhw_armors.json --reset
-
-Optional (development / verification):
-- python manage.py import_armors --armors data/mhw_armors.json --dry-run --limit 10
-
-Notes:
-- Armor import is idempotent.
-- ArmorSkill join rows are rebuilt per armor to ensure consistency.
-
---------------------------------------------------
-Step 7. Import Charm Data
---------------------------------------------------
-
-Charm data is retrieved from mhw-db and imported into the internal database.
-
-Step 7.1 Download charms JSON from mhw-db:
-- curl -L "https://mhw-db.com/charms" -o data/mhw_charms_raw.json
-
-Step 7.2 Import charms into the database:
-
-Required (first-time setup only):
-- python manage.py import_charms --path data/mhw_charms_raw.json --reset
-
-Optional (re-import without reset is safe):
-- python manage.py import_charms --path data/mhw_charms_raw.json
-
-Notes:
-- mhw-db represents charms as a base charm with multiple ranks.
-- The import expands each rank into a separate internal Charm row.
-- This makes Build linking and future stat calculation simpler and deterministic.
-
---------------------------------------------------
-Step 8. Import Decoration Data
---------------------------------------------------
-
-Decoration data is retrieved from mhw-db and imported into the internal database.
-
-Step 8.1 Download decorations JSON from mhw-db:
-- curl -L "https://mhw-db.com/decorations" -o data/mhw_decorations_raw.json
-
-Step 8.2 Import decorations into the database:
-
-Required (first-time setup only):
-- python manage.py import_decorations --path data/mhw_decorations_raw.json --reset
-
-Optional (re-import without reset is safe):
-- python manage.py import_decorations --path data/mhw_decorations_raw.json
-
-Notes:
-- Decorations are imported as standalone entities.
-- Skill linkage may be deferred if referenced skills are not yet resolvable.
-- Final skill effects are expected to be calculated in the Build Stats layer.
-
---------------------------------------------------
-Step 9. Run Server
---------------------------------------------------
-
-- python manage.py runserver
-
---------------------------------------------------
-Step 10. Verify API Endpoints
---------------------------------------------------
-
-- GET /api/v1/mhw/monsters/
-- GET /api/v1/mhw/monsters/paged/
-- GET /api/v1/mhw/weapons/
-- GET /api/v1/mhw/weapons/paged/
-- GET /api/v1/mhw/skills/
-- GET /api/v1/mhw/skills/paged/
-- GET /api/v1/mhw/armors/
-- GET /api/v1/mhw/armors/paged/
-- GET /api/v1/mhw/charms/
-- GET /api/v1/mhw/charms/paged/
-- GET /api/v1/mhw/charms/{id}/
-- GET /api/v1/mhw/decorations/
-- GET /api/v1/mhw/decorations/paged/
-- GET /api/v1/mhw/decorations/{id}/
-- GET /api/v1/mhw/builds/
-- GET /api/v1/mhw/builds/paged/
-- GET /api/v1/mhw/builds/{id}/
-- GET /api/v1/mhw/builds/{id}/stats/
-
---------------------------------------------------
-Step 11. Run Backend Tests (Recommended)
---------------------------------------------------
-
-- python manage.py test MonsterHunterWorld
+We DO NOT rely on mhw-db structure at runtime.
 
 ==================================================
-4. Import Pipeline – Stability Design
+3. Full Local Setup (Team Standard)
 ==================================================
 
-The import pipeline is intentionally defensive to handle real-world data issues.
+Step 1 — Clone & Environment
 
-Design Goals:
-- One bad record must not crash the entire import
-- Duplicate data must never cause UNIQUE constraint failures
-- Re-importing data must be safe and idempotent
-- Internal database is the single source of truth
-
-Key Design Decisions:
-- Per-entity transaction isolation
-- In-memory deduplication before database insertion
-- Deduplication uses the same unique keys as the database schema
-- Child records (weaknesses, armor skills, charm skills, decoration skills)
-  are replaced per parent entity when applicable
-
-==================================================
-5. Core Data Models (Conceptual)
-==================================================
+git clone <repository-url>
+cd Capstone-Project/mysite
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 
 --------------------------------------------------
-5.1 Monster
+
+Step 2 — Database
+
+python manage.py migrate
+
+Optional full reset:
+python manage.py flush
+
 --------------------------------------------------
+
+Step 3 — Import Order (IMPORTANT)
+
+The import order matters because of foreign keys.
+
+1) Monsters
+python manage.py import_mhw --monsters data/mhw_monsters.json --reset
+
+2) Weapons
+python manage.py import_weapons --weapons data/mhw_weapons.json --reset
+
+3) Skills
+python manage.py import_skills --skills data/mhw_skills.json --reset
+
+4) Armors (REQUIRES Skills already imported)
+python manage.py import_armors --armors data/mhw_armors.json --reset
+
+5) Armor Sets / Set Bonuses
+python manage.py import_set_bonuses --sets data/mhw_armor_sets.json --reset
+
+6) Charms (REQUIRES Skills)
+python manage.py import_charms --path data/mhw_charms_raw.json --reset
+
+7) Decorations (REQUIRES Skills)
+python manage.py import_decorations --path data/mhw_decorations_raw.json --reset
+
+--------------------------------------------------
+
+Step 4 — Run Server
+
+python manage.py runserver
+
+==================================================
+4. Import Pipeline – What Was Actually Built
+==================================================
+
+The import system is NOT a naive insert.
+
+It includes:
+
+✔ Defensive JSON shape detection
+✔ Support for embedded skill payloads OR skill id references
+✔ update_or_create for idempotency
+✔ Per-parent child row replacement
+✔ external_id as unique stable key
+
+--------------------------------------------------
+4.1 Armor Import – Critical Design
+--------------------------------------------------
+
+The armor import does ALL of the following:
+
+1) Reads defense:
+   defense.base
+   defense.max
+   defense.augmented
+
+2) Reads slots:
+   slots: [{rank:1}, {rank:2}]
+
+3) Reads resistances:
+   fire
+   water
+   thunder
+   ice
+   dragon
+
+4) Extracts armorSet:
+   armor_set_external_id
+   armor_set_name
+   armor_set_rank
+   armor_set_bonus_external_id
+
+5) Rebuilds ArmorSkill table:
+
+   For each armor:
+   - Deletes existing ArmorSkill rows
+   - Recreates from JSON
+   - Resolves Skill by external_id
+   - Creates Skill if embedded payload exists
+
+This guarantees consistency and no duplicate skill stacking.
+
+--------------------------------------------------
+4.2 ArmorSkill Relationship
+--------------------------------------------------
+
+ArmorSkill is a join table:
+
+Armor 1 ---- N ArmorSkill N ---- 1 Skill
 
 Fields:
-- id (integer): Internal database ID
-- external_id (integer): Stable ID from mhw-db (unique)
-- name (string)
-- monster_type (string)
-- is_elder_dragon (boolean)
+- armor_id
+- skill_id
+- level
+
+Import uses REPLACE semantics per armor.
 
 --------------------------------------------------
-5.2 MonsterWeakness
+4.3 Charm Import
 --------------------------------------------------
 
-Fields:
-- kind (string): "element" or "ailment"
-- name (string)
-- stars (integer): positive integer (typically 1–3)
-- condition (string, optional)
-- condition_key (string): normalized key derived from condition
+Charm JSON includes ranks.
+
+Import expands each rank into a separate Charm row.
+
+CharmSkill join table:
+
+Charm 1 ---- N CharmSkill N ---- 1 Skill
 
 --------------------------------------------------
-5.3 Weapon
+4.4 Decoration Import
 --------------------------------------------------
 
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- weapon_type (string)
-- rarity (integer)
-- attack_raw (integer)
-- attack_display (integer)
-- affinity (integer)
-- element (string, optional)
-- element_damage (integer, optional)
-- elderseal (string, optional)
+Decoration is standalone.
+DecorationSkill links decoration to skill.
 
---------------------------------------------------
-5.4 Skill
---------------------------------------------------
+BuildDecoration stores:
 
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- description (string)
-- max_level (integer)
-
---------------------------------------------------
-5.5 Armor
---------------------------------------------------
-
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- armor_type (string)
-- rarity (integer)
-- defense_base (integer)
-- defense_max (integer)
-- defense_augmented (integer)
-- slot_1 (integer)
-- slot_2 (integer)
-- slot_3 (integer)
-
---------------------------------------------------
-5.6 Charm
---------------------------------------------------
-
-Represents a single charm rank.
-
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- rarity (integer, optional)
-
---------------------------------------------------
-5.7 Decoration
---------------------------------------------------
-
-Represents a single decoration jewel.
-
-Fields:
-- id (integer)
-- external_id (integer, unique)
-- name (string)
-- rarity (integer)
-
---------------------------------------------------
-5.8 Build
---------------------------------------------------
-
-Represents a user-created build.
-
-Fields:
-- id (integer)
-- name (string)
-- description (string)
-- weapon (optional)
-- charm (optional)
-- armor_pieces (0..N)
-- decorations (0..N)
-- created_at (datetime)
-- updated_at (datetime)
-
---------------------------------------------------
-5.9 Build Stats (Calculated Results)
---------------------------------------------------
-
-Build stats endpoint provides a computed view for a build.
-Currently the implementation is a placeholder, but the JSON response contract is fixed.
+- slot (head/chest/gloves/waist/legs/weapon)
+- socket_index (1..3)
+- decoration_id
 
 ==================================================
-6. API Documentation (Swagger / OpenAPI)
+5. Core Models (Real Implementation View)
 ==================================================
 
-Auto-generated documentation endpoints:
+Monster
+- id
+- external_id (unique)
+- name
+- monster_type
+- is_elder_dragon
 
-- OpenAPI Schema:
-  /api/schema/
+MonsterWeakness
+- monster (FK)
+- kind
+- name
+- stars
+- condition
+- condition_key
 
-- Swagger UI:
-  /api/docs/
+Weapon
+- id
+- external_id (unique)
+- name
+- weapon_type
+- rarity
+- attack_raw
+- attack_display
+- affinity
+- element
+- element_damage
+- elderseal
 
-- Redoc:
-  /api/redoc/
+Skill
+- id
+- external_id (unique)
+- name
+- description
+- max_level
 
-==================================================
-7. API Endpoints
-==================================================
+Armor
+- id
+- external_id (unique)
+- name
+- armor_type
+- rarity
+- defense_base
+- defense_max
+- defense_augmented
+- slot_1
+- slot_2
+- slot_3
+- res_fire
+- res_water
+- res_thunder
+- res_ice
+- res_dragon
+- armor_set_external_id
+- armor_set_name
+- armor_set_rank
+- armor_set_bonus_external_id
 
-Base URL:
-/api/v1/mhw/
+ArmorSkill
+- armor (FK)
+- skill (FK)
+- level
 
---------------------------------------------------
-7.1 Monsters
---------------------------------------------------
+Charm
+- id
+- external_id
+- name
+- rarity
 
-GET /monsters/
-GET /monsters/paged/
-GET /monsters/{id}/
+CharmSkill
+- charm (FK)
+- skill (FK)
+- level
 
---------------------------------------------------
-7.2 Weapons
---------------------------------------------------
+Decoration
+- id
+- external_id
+- name
+- rarity
 
-GET /weapons/
-GET /weapons/paged/
-GET /weapons/{id}/
+DecorationSkill
+- decoration (FK)
+- skill (FK)
+- level
 
---------------------------------------------------
-7.3 Skills
---------------------------------------------------
+Build
+- id
+- name
+- description
+- weapon (nullable FK)
+- charm (nullable FK)
+- created_at
+- updated_at
 
-GET /skills/
-GET /skills/paged/
-GET /skills/{id}/
+BuildArmorPiece
+- build (FK)
+- slot
+- armor (FK)
 
---------------------------------------------------
-7.4 Armors
---------------------------------------------------
-
-GET /armors/
-GET /armors/paged/
-GET /armors/{id}/
-
---------------------------------------------------
-7.5 Charms
---------------------------------------------------
-
-GET /charms/
-GET /charms/paged/
-GET /charms/{id}/
-
---------------------------------------------------
-7.6 Decorations
---------------------------------------------------
-
-GET /decorations/
-GET /decorations/paged/
-GET /decorations/{id}/
-
---------------------------------------------------
-7.7 Builds
---------------------------------------------------
-
-GET /builds/
-POST /builds/
-
-GET /builds/paged/
-GET /builds/{id}/
-PATCH /builds/{id}/
-PUT /builds/{id}/
-DELETE /builds/{id}/
-
---------------------------------------------------
-7.8 Build Stats (Calculated View – Placeholder Contract)
---------------------------------------------------
-
-GET /builds/{id}/stats/
-
-==================================================
-8. API Contract Rules
-==================================================
-
-This document is an API contract.
-
-- Any API change must update this document
-- Breaking changes require an API version bump (v2)
-
-==================================================
-9. FAQ
-==================================================
-
-Q: Decorations have no linked skills?
-A: This is expected. Skill effects are calculated in the Build Stats layer.
-
-==================================================
-10. Future Extensions
-==================================================
-
-- Decoration skill resolution
-- Conditional skill logic
-- Real build stat calculations
-- Build sharing / voting
+BuildDecoration
+- build (FK)
+- slot
+- socket_index
+- decoration (FK)
 
 ==================================================
-11. Contact
+6. Build Create/Update Logic (IMPORTANT)
 ==================================================
 
-For backend or data-related questions,
-contact the backend/database maintainer.
+BuildCreateUpdateSerializer supports TWO payload styles:
+
+Style A (internal id):
+"armor_pieces": [
+  {"slot":"head","armor_id":5032}
+]
+
+Style B (MHW-style external id):
+"armors": {
+  "head": 1,
+  "chest": 2
+}
+
+Replace semantics:
+
+- If "armors" exists → delete all existing armor pieces → rebuild
+- If "armor_pieces" exists → delete all → rebuild
+- If "decorations" exists → delete all → rebuild
+
+Weapon supports:
+- weapon_id
+- weapon_external_id
+
+Charm supports:
+- charm_id
+- charm_external_id
+
+==================================================
+7. Build Stats Layer (Implemented)
+==================================================
+
+GET /api/v1/mhw/builds/{id}/stats/
+
+This endpoint computes:
+
+1) Weapon stats
+   - attack_raw
+   - attack_display
+   - affinity
+   - element
+
+2) Armor defense sum
+   defense = sum(defense_base)
+
+3) Resistances sum
+   res_fire = sum(res_fire)
+   res_water = sum(res_water)
+   etc.
+
+4) Skill aggregation
+   Aggregates levels from:
+   - ArmorSkill
+   - CharmSkill
+   - DecorationSkill
+   - (future: weapon / set_bonus)
+
+IMPORTANT CONTRACT NOTE (v1):
+- In the Build Stats response, "skills[].skill_id" refers to Skill.external_id (mhw-db stable ID),
+  NOT the internal database primary key Skill.id.
+
+Returns stable contract:
+
+{
+  "build_id": 5,
+  "stats": {
+    "attack": { "raw": 80, "display": 384 },
+    "affinity": 0,
+    "element": { "type": null, "value": 0 },
+    "defense": 10,
+    "resistances": {
+      "fire": 10,
+      "water": 0,
+      "thunder": 0,
+      "ice": 0,
+      "dragon": 0
+    }
+  },
+  "skills": [
+    {
+      "skill_id": 429,
+      "name": "Hunger Resistance",
+      "level": 1,
+      "max_level": 3,
+      "sources": { "armor": 1 }
+    }
+  ],
+  "set_bonuses": [
+    {
+      "name": "Leather",
+      "pieces": 5,
+      "active": false
+    }
+  ]
+}
+
+This JSON structure is FIXED for API v1.
+
+==================================================
+8. What Has Been Fully Implemented
+==================================================
+
+✔ ArmorSkill join rebuild logic
+✔ Skill max_level derivation from ranks
+✔ Armor resistances storage
+✔ Armor set metadata storage
+✔ Build weapon integration
+✔ external_id linking support
+✔ Replace semantics for build update
+✔ Defensive import parsing
+✔ Idempotent imports
+✔ Build stats calculation (weapon + armor + resistances + skills)
+
+==================================================
+9. What Is NOT Yet Implemented
+==================================================
+
+- True damage calculation
+- Conditional skill activation
+- Decoration size validation
+- Set bonus skill activation logic
+- Skill caps enforcement
+
+==================================================
+10. API Contract Rule
+==================================================
+
+If you change:
+
+- JSON response shape
+- field names
+- stat computation logic
+
+You MUST update this document.
+
+Breaking change → API v2.
+
+==================================================
+END OF DOCUMENT
+==================================================
