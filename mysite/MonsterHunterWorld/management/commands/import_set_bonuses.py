@@ -198,12 +198,27 @@ class Command(BaseCommand):
     help = "Import MHW set bonuses from mhw-db armor sets JSON."
 
     def add_arguments(self, parser):
+        # ----
+        # Backward/forward compatible CLI options:
+        # - Preferred: --armor-sets
+        # - Alias:     --sets
+        # Either is accepted; at least one is required.
+        # ----
         parser.add_argument(
             "--armor-sets",
+            dest="armor_sets",
             type=str,
-            required=True,
+            required=False,
             help="Path to mhw-db armor sets JSON file (e.g., data/mhw_armor_sets.json)",
         )
+        parser.add_argument(
+            "--sets",
+            dest="sets",
+            type=str,
+            required=False,
+            help="Alias for --armor-sets (compat).",
+        )
+
         parser.add_argument(
             "--reset",
             action="store_true",
@@ -222,7 +237,17 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        path: str = options["armor_sets"]
+        # Normalize path from either flag
+        path = options.get("armor_sets") or options.get("sets")
+        if not path:
+            self.stdout.write(
+                self.style.ERROR(
+                    "Missing required argument: provide --armor-sets <path> (preferred) "
+                    "or --sets <path> (alias)."
+                )
+            )
+            return
+
         reset: bool = options["reset"]
         dry_run: bool = options["dry_run"]
         limit: int = options["limit"]
