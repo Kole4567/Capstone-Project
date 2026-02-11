@@ -348,7 +348,7 @@ This endpoint computes:
    - ArmorSkill
    - CharmSkill
    - DecorationSkill
-   - (future: weapon / set_bonus)
+   - SetBonusRank (active thresholds)
 
 IMPORTANT CONTRACT NOTE (v1):
 - In the Build Stats response, "skills[].skill_id" refers to Skill.external_id (mhw-db stable ID),
@@ -404,7 +404,7 @@ This JSON structure is FIXED for API v1.
 ✔ Replace semantics for build update
 ✔ Defensive import parsing
 ✔ Idempotent imports
-✔ Build stats calculation (weapon + armor + resistances + skills)
+✔ Build stats calculation (weapon + armor + resistances + skills + set bonuses)
 
 ==================================================
 9. What Is NOT Yet Implemented
@@ -413,8 +413,8 @@ This JSON structure is FIXED for API v1.
 - True damage calculation
 - Conditional skill activation
 - Decoration size validation
-- Set bonus skill activation logic
-- Skill caps enforcement
+- Advanced set bonus scaling logic
+- Skill caps beyond max_level enforcement
 
 ==================================================
 10. API Contract Rule
