@@ -77,13 +77,13 @@ python manage.py import_skills --skills data/mhw_skills.json --reset
 python manage.py import_armors --armors data/mhw_armors.json --reset
 
 5) Armor Sets / Set Bonuses
-python manage.py import_set_bonuses --armor-sets data/mhw_armor_sets.json --reset
+python manage.py import_set_bonuses --sets data/mhw_armor_sets.json --reset
 
 6) Charms (REQUIRES Skills)
-python manage.py import_charms --charms data/mhw_charms_raw.json --reset
+python manage.py import_charms --path data/mhw_charms_raw.json --reset
 
 7) Decorations (REQUIRES Skills)
-python manage.py import_decorations --decorations data/mhw_decorations_raw.json --reset
+python manage.py import_decorations --path data/mhw_decorations_raw.json --reset
 
 --------------------------------------------------
 
@@ -353,6 +353,41 @@ This endpoint computes:
 IMPORTANT CONTRACT NOTE (v1):
 - In the Build Stats response, "skills[].skill_id" refers to Skill.external_id (mhw-db stable ID),
   NOT the internal database primary key Skill.id.
+
+Returns stable contract:
+
+{
+  "build_id": 5,
+  "stats": {
+    "attack": { "raw": 80, "display": 384 },
+    "affinity": 0,
+    "element": { "type": null, "value": 0 },
+    "defense": 10,
+    "resistances": {
+      "fire": 10,
+      "water": 0,
+      "thunder": 0,
+      "ice": 0,
+      "dragon": 0
+    }
+  },
+  "skills": [
+    {
+      "skill_id": 429,
+      "name": "Hunger Resistance",
+      "level": 1,
+      "max_level": 3,
+      "sources": { "armor": 1 }
+    }
+  ],
+  "set_bonuses": [
+    {
+      "name": "Leather",
+      "pieces": 5,
+      "active": false
+    }
+  ]
+}
 
 This JSON structure is FIXED for API v1.
 
