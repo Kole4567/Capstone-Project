@@ -77,13 +77,13 @@ python manage.py import_skills --skills data/mhw_skills.json --reset
 python manage.py import_armors --armors data/mhw_armors.json --reset
 
 5) Armor Sets / Set Bonuses
-python manage.py import_set_bonuses --sets data/mhw_armor_sets.json --reset
+python manage.py import_set_bonuses --armor-sets data/mhw_armor_sets.json --reset
 
 6) Charms (REQUIRES Skills)
-python manage.py import_charms --path data/mhw_charms_raw.json --reset
+python manage.py import_charms --charms data/mhw_charms_raw.json --reset
 
 7) Decorations (REQUIRES Skills)
-python manage.py import_decorations --path data/mhw_decorations_raw.json --reset
+python manage.py import_decorations --decorations data/mhw_decorations_raw.json --reset
 
 --------------------------------------------------
 
@@ -348,46 +348,11 @@ This endpoint computes:
    - ArmorSkill
    - CharmSkill
    - DecorationSkill
-   - (future: weapon / set_bonus)
+   - SetBonusRank (active thresholds)
 
 IMPORTANT CONTRACT NOTE (v1):
 - In the Build Stats response, "skills[].skill_id" refers to Skill.external_id (mhw-db stable ID),
   NOT the internal database primary key Skill.id.
-
-Returns stable contract:
-
-{
-  "build_id": 5,
-  "stats": {
-    "attack": { "raw": 80, "display": 384 },
-    "affinity": 0,
-    "element": { "type": null, "value": 0 },
-    "defense": 10,
-    "resistances": {
-      "fire": 10,
-      "water": 0,
-      "thunder": 0,
-      "ice": 0,
-      "dragon": 0
-    }
-  },
-  "skills": [
-    {
-      "skill_id": 429,
-      "name": "Hunger Resistance",
-      "level": 1,
-      "max_level": 3,
-      "sources": { "armor": 1 }
-    }
-  ],
-  "set_bonuses": [
-    {
-      "name": "Leather",
-      "pieces": 5,
-      "active": false
-    }
-  ]
-}
 
 This JSON structure is FIXED for API v1.
 
@@ -404,7 +369,7 @@ This JSON structure is FIXED for API v1.
 ✔ Replace semantics for build update
 ✔ Defensive import parsing
 ✔ Idempotent imports
-✔ Build stats calculation (weapon + armor + resistances + skills)
+✔ Build stats calculation (weapon + armor + resistances + skills + set bonuses)
 
 ==================================================
 9. What Is NOT Yet Implemented
@@ -413,8 +378,8 @@ This JSON structure is FIXED for API v1.
 - True damage calculation
 - Conditional skill activation
 - Decoration size validation
-- Set bonus skill activation logic
-- Skill caps enforcement
+- Advanced set bonus scaling logic
+- Skill caps beyond max_level enforcement
 
 ==================================================
 10. API Contract Rule
