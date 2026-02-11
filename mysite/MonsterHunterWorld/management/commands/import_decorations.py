@@ -128,12 +128,22 @@ class Command(BaseCommand):
     help = "Import MHW decorations data into the internal database."
 
     def add_arguments(self, parser):
+        #  New canonical flag
         parser.add_argument(
             "--decorations",
             type=str,
-            required=True,
-            help="Path to decorations JSON file",
+            required=False,
+            help="Path to decorations JSON file (e.g., data/mhw_decorations_raw.json)",
         )
+
+        #  Backward-compatible alias (people used --path before)
+        parser.add_argument(
+            "--path",
+            type=str,
+            required=False,
+            help="(Deprecated) Alias for --decorations. Path to decorations JSON file.",
+        )
+
         parser.add_argument(
             "--reset",
             action="store_true",
@@ -152,10 +162,25 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        path = options["decorations"]
+        # Prefer --decorations; fallback to deprecated --path
+        path = options.get("decorations") or options.get("path")
         reset = options["reset"]
         dry_run = options["dry_run"]
         limit = options["limit"]
+
+        if not path:
+            self.stdout.write(
+                self.style.ERROR("Missing required argument: --decorations (or legacy --path)")
+            )
+            self.stdout.write("Example:")
+            self.stdout.write(
+                "  python manage.py import_decorations --decorations data/mhw_decorations_raw.json --reset"
+            )
+            self.stdout.write("Legacy:")
+            self.stdout.write(
+                "  python manage.py import_decorations --path data/mhw_decorations_raw.json --reset"
+            )
+            return
 
         with open(path, "r", encoding="utf-8") as f:
             payload = json.load(f)

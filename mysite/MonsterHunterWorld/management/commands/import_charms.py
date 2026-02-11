@@ -169,11 +169,20 @@ class Command(BaseCommand):
     help = "Import MHW charms data into the internal database (rank-based, mhw-db style)."
 
     def add_arguments(self, parser):
+        #  New canonical flag
         parser.add_argument(
             "--charms",
             type=str,
-            required=True,
+            required=False,
             help="Path to charms JSON file (e.g., data/mhw_charms_raw.json).",
+        )
+
+        #  Backward-compatible alias (people used --path before)
+        parser.add_argument(
+            "--path",
+            type=str,
+            required=False,
+            help="(Deprecated) Alias for --charms. Path to charms JSON file.",
         )
 
         parser.add_argument(
@@ -196,10 +205,19 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        path = options["charms"]
-        reset = options["reset"]
-        dry_run = options["dry_run"]
-        limit = options["limit"]
+        # Prefer --charms; fallback to deprecated --path
+        path = options.get("charms") or options.get("path")
+        reset = bool(options.get("reset"))
+        dry_run = bool(options.get("dry_run"))
+        limit = int(options.get("limit") or 0)
+
+        if not path:
+            self.stdout.write(self.style.ERROR("Missing required argument: --charms (or legacy --path)"))
+            self.stdout.write("Example:")
+            self.stdout.write("  python manage.py import_charms --charms data/mhw_charms_raw.json --reset")
+            self.stdout.write("Legacy:")
+            self.stdout.write("  python manage.py import_charms --path data/mhw_charms_raw.json --reset")
+            return
 
         with open(path, "r", encoding="utf-8") as f:
             payload = json.load(f)
@@ -249,7 +267,7 @@ class Command(BaseCommand):
                         skipped_count += 1
                         continue
 
-                    # Each rank becomes a Charm row in our DB (like your current design)
+                    # Each rank becomes a Charm row in our DB
                     for rank in ranks:
                         rank_ext_id = derive_charm_rank_external_id(int(base_id), rank)
                         if rank_ext_id is None:
@@ -260,31 +278,24 @@ class Command(BaseCommand):
                         rarity = safe_int(rank.get("rarity"), default=None)
 
                         if dry_run:
-                            # Count as "would create" (approx)
                             created_count += 1
                             continue
 
                         obj, created = Charm.objects.get_or_create(
                             external_id=int(rank_ext_id),
-                            defaults={
-                                "name": name,
-                                "rarity": rarity,
-                            },
+                            defaults={"name": name, "rarity": rarity},
                         )
 
                         if created:
                             created_count += 1
                         else:
                             changed = False
-
                             if obj.name != name:
                                 obj.name = name
                                 changed = True
-
                             if obj.rarity != rarity:
                                 obj.rarity = rarity
                                 changed = True
-
                             if changed:
                                 obj.save()
                                 updated_count += 1
