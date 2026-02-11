@@ -6,6 +6,9 @@ from django.db import transaction
 from MonsterHunterWorld.models import Skill
 
 
+# ==================================================
+# JSON shape helpers (defensive)
+# ==================================================
 def extract_skill_list(payload):
     """
     Return a list of skill dicts from various possible JSON shapes.
@@ -23,11 +26,13 @@ def extract_skill_list(payload):
     if not isinstance(payload, dict):
         return []
 
+    data = payload.get("data")
+
     candidates = [
         payload.get("skills"),
-        (payload.get("data") or {}).get("skills") if isinstance(payload.get("data"), dict) else None,
+        (data or {}).get("skills") if isinstance(data, dict) else None,
         payload.get("results"),
-        payload.get("data") if isinstance(payload.get("data"), list) else None,
+        data if isinstance(data, list) else None,
     ]
 
     for c in candidates:
@@ -57,14 +62,24 @@ def pick_external_id(skill_dict: dict):
     return None
 
 
+def safe_int(v, default=0):
+    try:
+        if v is None:
+            return default
+        return int(v)
+    except (ValueError, TypeError):
+        return default
+
+
 def derive_max_level(ranks_field):
     """
     mhw-db usually provides:
       ranks: [{ "level": 1, ... }, { "level": 2, ... }, ...]
-    MVP policy:
-    - max_level = max(level) if present
-    - else = len(ranks) if it’s a list
-    - else = 1
+
+    Policy (MHW-like, robust):
+    - If ranks include "level", max_level = max(level)
+    - Else if ranks is a list, max_level = len(ranks)
+    - Else max_level = 1
     """
     if ranks_field is None:
         return 1
@@ -79,20 +94,20 @@ def derive_max_level(ranks_field):
     for r in ranks_field:
         if not isinstance(r, dict):
             continue
-        lvl = r.get("level")
-        try:
-            if lvl is not None:
-                levels.append(int(lvl))
-        except (ValueError, TypeError):
-            continue
+        if "level" in r:
+            lvl = safe_int(r.get("level"), default=None)
+            if lvl is not None and lvl > 0:
+                levels.append(lvl)
 
     if levels:
         return max(levels)
 
-    # fallback: list length if level fields are missing
     return max(1, len(ranks_field))
 
 
+# ==================================================
+# Command
+# ==================================================
 class Command(BaseCommand):
     help = "Import MHW skill data into the internal database."
 
@@ -103,19 +118,16 @@ class Command(BaseCommand):
             required=True,
             help="Path to skills JSON file",
         )
-
         parser.add_argument(
             "--reset",
             action="store_true",
             help="Delete existing skills before importing",
         )
-
         parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Parse only; do not write to DB",
         )
-
         parser.add_argument(
             "--limit",
             type=int,
@@ -145,6 +157,14 @@ class Command(BaseCommand):
         skipped_count = 0
         failed_count = 0
 
+        # NOTE (MHW-like import contract):
+        # - Skill is the "source of truth" for:
+        #   name / description / max_level
+        # - Other importers (armors/decorations/charms/set_bonuses) should only "link"
+        #   and never overwrite these fields aggressively.
+        #
+        # Here we DO overwrite when source changed, because this file is the owner.
+
         with transaction.atomic():
             if reset and not dry_run:
                 Skill.objects.all().delete()
@@ -156,7 +176,8 @@ class Command(BaseCommand):
 
                 try:
                     external_id = pick_external_id(s)
-                    name = s.get("name")
+
+                    name = (s.get("name") or "").strip()
                     description = s.get("description") or ""
                     max_level = derive_max_level(s.get("ranks"))
 
@@ -179,24 +200,28 @@ class Command(BaseCommand):
 
                     if created:
                         created_count += 1
-                    else:
-                        changed = False
+                        continue
 
-                        if obj.name != name:
-                            obj.name = name
-                            changed = True
+                    changed = False
 
-                        if (obj.description or "") != (description or ""):
-                            obj.description = description
-                            changed = True
+                    if obj.name != name:
+                        obj.name = name
+                        changed = True
 
-                        if obj.max_level != int(max_level):
-                            obj.max_level = int(max_level)
-                            changed = True
+                    # Keep description in sync (mhw-db descriptions can be updated/cleaned)
+                    if (obj.description or "") != (description or ""):
+                        obj.description = description
+                        changed = True
 
-                        if changed:
-                            obj.save()
-                            updated_count += 1
+                    # Always sync max_level to the authoritative value from skill ranks
+                    new_max = int(max_level)
+                    if int(obj.max_level) != new_max:
+                        obj.max_level = new_max
+                        changed = True
+
+                    if changed:
+                        obj.save()
+                        updated_count += 1
 
                 except Exception as e:
                     failed_count += 1
