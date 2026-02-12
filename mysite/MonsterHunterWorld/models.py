@@ -15,12 +15,25 @@ class Monster(models.Model):
 
     Constraints:
     - external_id must be unique to allow safe re-imports (upsert behavior).
+
+    Import mapping notes (mhw_monsters.json):
+    - primary_element  <- monster["elements"][0] (first element only, if present)
+    - primary_ailment  <- monster["ailments"][0]["name"] (first ailment only, if present)
     """
 
     external_id = models.IntegerField(unique=True)
     name = models.CharField(max_length=120)
     monster_type = models.CharField(max_length=80)
     is_elder_dragon = models.BooleanField(default=False)
+
+    # ==================================================
+    # Monster Offensive Identity (MVP)
+    # ==================================================
+    # "elements" is a list of strings like: ["fire"], ["water"], ...
+    # "ailments" is a list of dicts; we store the first ailment name only.
+    # These fields are intended for build recommendation logic (defensive planning).
+    primary_element = models.CharField(max_length=40, null=True, blank=True)
+    primary_ailment = models.CharField(max_length=80, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -63,12 +76,61 @@ class MonsterWeakness(models.Model):
         return f"{self.monster.name} - {self.kind}:{self.name} ({self.stars})"
 
 
+class MonsterResistance(models.Model):
+    """
+    Represents a monster's elemental resistance (NOT weakness).
+
+    Source (mhw_monsters.json):
+      "resistances": [
+        { "element": "water", "condition": null },
+        { "element": "fire", "condition": "covered in mud" }
+      ]
+
+    Design notes:
+    - Resistances can be conditional, so we store condition + a slugified condition_key.
+    - Uniqueness should match (monster, element, condition_key).
+    """
+
+    monster = models.ForeignKey(
+        Monster,
+        on_delete=models.CASCADE,
+        related_name="resistances",
+    )
+
+    # mhw-db uses lowercase strings like: "fire", "water", "thunder", "ice", "dragon"
+    element = models.CharField(max_length=40)
+
+    condition = models.CharField(max_length=200, null=True, blank=True)
+    condition_key = models.CharField(max_length=200, default="", blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["monster", "element", "condition_key"],
+                name="uniq_monsterresistance_monster_element_conditionkey",
+            ),
+        ]
+
+    def __str__(self):
+        cond = f" ({self.condition})" if self.condition else ""
+        return f"{self.monster.name} - res:{self.element}{cond}"
+
+
 # ==================================================
 # Weapons
 # ==================================================
 class Weapon(models.Model):
     """
     Weapon model (MHW Weapons MVP).
+
+    Import mapping notes (mhw_weapons.json):
+    - external_id  <- weapon["id"]
+    - weapon_type  <- weapon["type"]
+    - attack_*     <- weapon["attack"]["display"], weapon["attack"]["raw"]
+    - element      <- weapon["elements"][0]["type"] (first element only, if present)
+    - element_damage <- weapon["elements"][0]["damage"] (first element only, if present)
+    - affinity     <- weapon["attributes"].get("affinity", 0)
+    - elderseal    <- weapon.get("elderseal")
     """
 
     external_id = models.IntegerField(unique=True)
@@ -162,7 +224,9 @@ class Armor(models.Model):
     armor_set_rank = models.CharField(max_length=40, null=True, blank=True)
 
     # mhw-db armorSet.bonus -> set bonus external id (can be null)
-    armor_set_bonus_external_id = models.IntegerField(null=True, blank=True, db_index=True)
+    armor_set_bonus_external_id = models.IntegerField(
+        null=True, blank=True, db_index=True
+    )
 
     skills = models.ManyToManyField(
         Skill,
