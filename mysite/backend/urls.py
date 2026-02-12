@@ -44,4 +44,8 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name="schema"),
         name="redoc",
     ),
+    path('weapons/', include('weapons.urls')),
+    path('armors/', include('armors.urls')),
+    path('charms/', include('charms.urls')),
+    path('monsters/', include('monsters.urls')),
 ]

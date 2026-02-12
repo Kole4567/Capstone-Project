@@ -1,0 +1,15 @@
+# Python bytecode (the __pycache__ folders shown in your weapons app)
+__pycache__/
+*.py[cod]
+
+# Local Database (the db.sqlite3 file in your root)
+db.sqlite3
+
+# Environment/Build folders
+node_modules/
+.venv/
+env/
+
+# OS specific files
+.DS_Store
+Thumbs.db
