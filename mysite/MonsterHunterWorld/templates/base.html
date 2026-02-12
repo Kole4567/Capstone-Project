@@ -1,0 +1,18 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <link rel="stylesheet" href="{% static 'css/output.css' %}">
+</head>
+<body>
+    <div class="navbar bg-base-100">
+        <a href="{% url 'home' %}" class="btn btn-ghost">MHW Home</a>
+        <a href="{% url 'weapon_index' %}" class="btn btn-ghost">Weapons</a>
+        <a href="{% url 'armors_index' %}" class="btn btn-ghost">Armor</a>
+        <a href="{% url 'charms_index' %}" class="btn btn-ghost">Charms</a>
+        <a href="{% url 'monsters_index' %}" class="btn btn-ghost">Monsters</a>
+    </div>
+
+    {% block content %}{% endblock %}
+</body>
+</html>
