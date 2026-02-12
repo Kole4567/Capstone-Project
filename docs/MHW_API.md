@@ -378,7 +378,7 @@ Computes:
    - ArmorSkill
    - CharmSkill
    - DecorationSkill
-   - SetBonusRank
+   - SetBonusRank (active thresholds)
 
 IMPORTANT:
 
@@ -434,8 +434,23 @@ but NOT used in URL routing in v1.
 - True damage calculation
 - Conditional skill activation
 - Decoration size validation
-- Advanced set bonus scaling
+- Advanced set bonus scaling logic
+- Skill caps beyond max_level enforcement
 - Damage vs monster weakness multiplier logic
+
+==================================================
+10. API Contract Rule
+==================================================
+
+If you change:
+
+- JSON response shape
+- field names
+- stat computation logic
+
+You MUST update this document.
+
+Breaking change → API v2.
 
 ==================================================
 END OF DOCUMENT
