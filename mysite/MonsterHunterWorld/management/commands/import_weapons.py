@@ -25,7 +25,9 @@ def extract_weapon_list(payload):
 
     candidates = [
         payload.get("weapons"),
-        (payload.get("data") or {}).get("weapons") if isinstance(payload.get("data"), dict) else None,
+        (payload.get("data") or {}).get("weapons")
+        if isinstance(payload.get("data"), dict)
+        else None,
         payload.get("results"),
         payload.get("data") if isinstance(payload.get("data"), list) else None,
     ]
@@ -133,6 +135,31 @@ def normalize_attack(attack_field):
     return display_int, raw_int
 
 
+def normalize_affinity(weapon_dict: dict):
+    """
+    Normalize affinity.
+
+    Note:
+    - In mhw_weapons.json, affinity is commonly stored under weapon["attributes"]["affinity"].
+    - Some sources may also provide a top-level "affinity".
+    """
+    if not isinstance(weapon_dict, dict):
+        return 0
+
+    # Prefer attributes.affinity (mhw-db style)
+    attrs = weapon_dict.get("attributes")
+    if isinstance(attrs, dict) and "affinity" in attrs:
+        val = attrs.get("affinity", 0)
+    else:
+        # Fallback to top-level affinity if present
+        val = weapon_dict.get("affinity", 0)
+
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return 0
+
+
 class Command(BaseCommand):
     help = "Import MHW weapon data into the internal database."
 
@@ -211,11 +238,8 @@ class Command(BaseCommand):
                     attack_display, attack_raw = normalize_attack(w.get("attack"))
                     element, element_damage = normalize_element(w.get("elements"))
 
-                    affinity = w.get("affinity", 0)
-                    try:
-                        affinity_int = int(affinity)
-                    except (ValueError, TypeError):
-                        affinity_int = 0
+                    # IMPORTANT: affinity is typically stored under attributes.affinity (mhw-db)
+                    affinity_int = normalize_affinity(w)
 
                     elderseal = w.get("elderseal")
 

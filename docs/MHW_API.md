@@ -62,8 +62,6 @@ python manage.py flush
 
 Step 3 — Import Order (IMPORTANT)
 
-The import order matters because of foreign keys.
-
 1) Monsters
 python manage.py import_mhw --monsters data/mhw_monsters.json --reset
 
@@ -73,7 +71,7 @@ python manage.py import_weapons --weapons data/mhw_weapons.json --reset
 3) Skills
 python manage.py import_skills --skills data/mhw_skills.json --reset
 
-4) Armors (REQUIRES Skills already imported)
+4) Armors (REQUIRES Skills)
 python manage.py import_armors --armors data/mhw_armors.json --reset
 
 5) Armor Sets / Set Bonuses
@@ -92,88 +90,119 @@ Step 4 — Run Server
 python manage.py runserver
 
 ==================================================
-4. Import Pipeline – What Was Actually Built
+4. Import Pipeline – What Was Built
 ==================================================
 
-The import system is NOT a naive insert.
-
-It includes:
-
 ✔ Defensive JSON shape detection
-✔ Support for embedded skill payloads OR skill id references
 ✔ update_or_create for idempotency
 ✔ Per-parent child row replacement
 ✔ external_id as unique stable key
+✔ Offensive identity extraction for Monsters
+✔ Element & damage extraction for Weapons
+✔ Resistance extraction for Armors
 
 --------------------------------------------------
-4.1 Armor Import – Critical Design
+4.1 Monster Import
 --------------------------------------------------
 
-The armor import does ALL of the following:
+Extracted fields:
 
-1) Reads defense:
-   defense.base
-   defense.max
-   defense.augmented
+- external_id
+- name
+- monster_type
+- is_elder_dragon
+- primary_element
+- primary_ailment
 
-2) Reads slots:
-   slots: [{rank:1}, {rank:2}]
+primary_element:
+Derived from monster["elements"][0].
+Only FIRST element stored (v1 design).
 
-3) Reads resistances:
-   fire
-   water
-   thunder
-   ice
-   dragon
+primary_ailment:
+Derived from monster["ailments"][0]["name"].
+Only FIRST ailment stored.
 
-4) Extracts armorSet:
-   armor_set_external_id
-   armor_set_name
-   armor_set_rank
-   armor_set_bonus_external_id
-
-5) Rebuilds ArmorSkill table:
-
-   For each armor:
-   - Deletes existing ArmorSkill rows
-   - Recreates from JSON
-   - Resolves Skill by external_id
-   - Creates Skill if embedded payload exists
-
-This guarantees consistency and no duplicate skill stacking.
+Weakness handling:
+- Replace all MonsterWeakness rows per monster
+- Deduplicate by (monster, kind, name, condition_key)
+- Keep highest star value
 
 --------------------------------------------------
-4.2 ArmorSkill Relationship
+4.2 Weapon Import
 --------------------------------------------------
 
-ArmorSkill is a join table:
+Extracted fields:
 
-Armor 1 ---- N ArmorSkill N ---- 1 Skill
+- external_id
+- weapon_type
+- rarity
+- attack_raw
+- attack_display
+- affinity
+- elderseal
+- element
+- element_damage
 
-Fields:
-- armor_id
-- skill_id
-- level
+If multiple elements exist,
+ONLY FIRST element entry is stored (v1).
 
-Import uses REPLACE semantics per armor.
+Example:
+
+"elements": [
+  { "type": "fire", "damage": 240 }
+]
+
+Stored as:
+
+element = "Fire"
+element_damage = 240
 
 --------------------------------------------------
-4.3 Charm Import
+4.3 Armor Import
 --------------------------------------------------
 
-Charm JSON includes ranks.
+Defense:
+- defense_base
+- defense_max
+- defense_augmented
 
-Import expands each rank into a separate Charm row.
+Slots:
+- slot_1
+- slot_2
+- slot_3
+
+Resistances:
+- res_fire
+- res_water
+- res_thunder
+- res_ice
+- res_dragon
+
+Set metadata:
+- armor_set_external_id
+- armor_set_name
+- armor_set_rank
+- armor_set_bonus_external_id
+
+ArmorSkill:
+- Delete all per armor
+- Recreate from JSON
+- Resolve Skill by external_id
+
+--------------------------------------------------
+4.4 Charm Import
+--------------------------------------------------
+
+Each charm rank becomes a separate Charm row.
 
 CharmSkill join table:
 
 Charm 1 ---- N CharmSkill N ---- 1 Skill
 
 --------------------------------------------------
-4.4 Decoration Import
+4.5 Decoration Import
 --------------------------------------------------
 
-Decoration is standalone.
 DecorationSkill links decoration to skill.
 
 BuildDecoration stores:
@@ -183,15 +212,17 @@ BuildDecoration stores:
 - decoration_id
 
 ==================================================
-5. Core Models (Real Implementation View)
+5. Core Models (Implementation View)
 ==================================================
 
 Monster
-- id
+- id (internal PK)
 - external_id (unique)
 - name
 - monster_type
 - is_elder_dragon
+- primary_element
+- primary_ailment
 
 MonsterWeakness
 - monster (FK)
@@ -203,7 +234,7 @@ MonsterWeakness
 
 Weapon
 - id
-- external_id (unique)
+- external_id
 - name
 - weapon_type
 - rarity
@@ -216,14 +247,14 @@ Weapon
 
 Skill
 - id
-- external_id (unique)
+- external_id
 - name
 - description
 - max_level
 
 Armor
 - id
-- external_id (unique)
+- external_id
 - name
 - armor_type
 - rarity
@@ -291,27 +322,25 @@ BuildDecoration
 - decoration (FK)
 
 ==================================================
-6. Build Create/Update Logic (IMPORTANT)
+6. Build Create/Update Logic
 ==================================================
 
-BuildCreateUpdateSerializer supports TWO payload styles:
+Supports two payload styles:
 
-Style A (internal id):
+Style A:
 "armor_pieces": [
   {"slot":"head","armor_id":5032}
 ]
 
-Style B (MHW-style external id):
+Style B:
 "armors": {
   "head": 1,
   "chest": 2
 }
 
 Replace semantics:
-
-- If "armors" exists → delete all existing armor pieces → rebuild
-- If "armor_pieces" exists → delete all → rebuild
-- If "decorations" exists → delete all → rebuild
+If armor list present → delete all → rebuild
+If decorations present → delete all → rebuild
 
 Weapon supports:
 - weapon_id
@@ -327,7 +356,7 @@ Charm supports:
 
 GET /api/v1/mhw/builds/{id}/stats/
 
-This endpoint computes:
+Computes:
 
 1) Weapon stats
    - attack_raw
@@ -335,26 +364,28 @@ This endpoint computes:
    - affinity
    - element
 
-2) Armor defense sum
+2) Defense sum
    defense = sum(defense_base)
 
-3) Resistances sum
-   res_fire = sum(res_fire)
-   res_water = sum(res_water)
-   etc.
+3) Resistance sum
+   fire
+   water
+   thunder
+   ice
+   dragon
 
-4) Skill aggregation
-   Aggregates levels from:
+4) Skill aggregation from:
    - ArmorSkill
    - CharmSkill
    - DecorationSkill
    - SetBonusRank (active thresholds)
 
-IMPORTANT CONTRACT NOTE (v1):
-- In the Build Stats response, "skills[].skill_id" refers to Skill.external_id (mhw-db stable ID),
-  NOT the internal database primary key Skill.id.
+IMPORTANT:
 
-Returns stable contract:
+skills[].skill_id refers to Skill.external_id
+NOT internal Skill.id.
+
+Example response:
 
 {
   "build_id": 5,
@@ -379,35 +410,25 @@ Returns stable contract:
       "max_level": 3,
       "sources": { "armor": 1 }
     }
-  ],
-  "set_bonuses": [
-    {
-      "name": "Leather",
-      "pieces": 5,
-      "active": false
-    }
   ]
 }
 
-This JSON structure is FIXED for API v1.
-
 ==================================================
-8. What Has Been Fully Implemented
+8. ID Contract (CRITICAL)
 ==================================================
 
-✔ ArmorSkill join rebuild logic
-✔ Skill max_level derivation from ranks
-✔ Armor resistances storage
-✔ Armor set metadata storage
-✔ Build weapon integration
-✔ external_id linking support
-✔ Replace semantics for build update
-✔ Defensive import parsing
-✔ Idempotent imports
-✔ Build stats calculation (weapon + armor + resistances + skills + set bonuses)
+URL routing uses INTERNAL primary key (id).
+
+Example:
+GET /api/v1/mhw/monsters/81/
+
+81 = internal database id
+
+external_id is exposed for linking,
+but NOT used in URL routing in v1.
 
 ==================================================
-9. What Is NOT Yet Implemented
+9. Not Yet Implemented
 ==================================================
 
 - True damage calculation
@@ -415,6 +436,7 @@ This JSON structure is FIXED for API v1.
 - Decoration size validation
 - Advanced set bonus scaling logic
 - Skill caps beyond max_level enforcement
+- Damage vs monster weakness multiplier logic
 
 ==================================================
 10. API Contract Rule

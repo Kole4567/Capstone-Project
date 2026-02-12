@@ -39,8 +39,9 @@ class MonsterListSerializer(serializers.ModelSerializer):
             "name",
             "monster_type",
             "is_elder_dragon",
+            "primary_element",   
+            "primary_ailment",   
         ]
-
 
 class MonsterDetailSerializer(serializers.ModelSerializer):
     """Detail serializer includes nested weaknesses."""
@@ -55,6 +56,8 @@ class MonsterDetailSerializer(serializers.ModelSerializer):
             "name",
             "monster_type",
             "is_elder_dragon",
+            "primary_element",   
+            "primary_ailment",   
             "weaknesses",
         ]
 
@@ -185,8 +188,13 @@ class ArmorListSerializer(serializers.ModelSerializer):
             "slot_1",
             "slot_2",
             "slot_3",
+            # Expose per-piece elemental resistances for build calculations
+            "res_fire",
+            "res_water",
+            "res_thunder",
+            "res_ice",
+            "res_dragon",
         ]
-
 
 class ArmorDetailSerializer(serializers.ModelSerializer):
     """Armor detail serializer (MVP)."""
@@ -208,9 +216,23 @@ class ArmorDetailSerializer(serializers.ModelSerializer):
             "slot_1",
             "slot_2",
             "slot_3",
+            # Expose per-piece elemental resistances for build calculations
+            "res_fire",
+            "res_water",
+            "res_thunder",
+            "res_ice",
+            "res_dragon",
             "armor_skills",
             "armor_set",
         ]
+
+    def get_armor_set(self, obj):
+        return {
+            "external_id": getattr(obj, "armor_set_external_id", None),
+            "name": getattr(obj, "armor_set_name", None),
+            "rank": getattr(obj, "armor_set_rank", None),
+            "bonus_external_id": getattr(obj, "armor_set_bonus_external_id", None),
+        }
 
     def get_armor_set(self, obj):
         return {
