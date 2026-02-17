@@ -3,23 +3,24 @@
 
 {% block content %}
 
-<!-- HERO SECTION -->
-<div
-  class="hero min-h-screen"
-  style="background-image: url('{% static 'images/hero-bg/worlds_cover.jpg' %}');"
->
-  <div class="hero-overlay bg-black/60"></div>
-  <div class="hero-content text-neutral-content text-center">
+<div class="hero min-h-screen relative overflow-hidden">
+  <img 
+    src="{% static 'images/hero-bg/monster_hunter_big.jpg' %}" 
+    class="absolute inset-0 w-full h-full object-cover z-0"
+    alt="Background"
+  />
+  
+  <div class="hero-overlay bg-black/60 z-10"></div>
+  <div class="hero-content text-neutral-content text-center z-20">
     <div class="max-w-md">
-      <h1 class="mb-5 text-5xl font-bold">Welcome</h1>
-      <p class="mb-5">
-        "Find your passion. Then put all you have into it. And don't let anyone tell you you're wasting your time".
+      <h1 class="mb-5 text-5xl font-bold text-white shadow-sm">Monster Hunter Builder</h1>
+      <p class="mb-5 italic text-gray-200">
+        "Find your passion. Then put all you have into it. And don't let anyone tell you you're wasting your time."
       </p>
       <a href="#main-content" class="btn btn-primary">Get Started</a>
     </div>
   </div>
 </div>
-
 <!-- MAIN CONTENT -->
 <div id="main-content" class="bg-base-100 py-16">
 
