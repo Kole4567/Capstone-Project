@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
+    <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: #3b82f6; margin-bottom: 40px; text-transform: uppercase;">
+        Weapon Compendium
+    </h1>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto;">
+        
+        {% for weapon in weapons %}
+        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+            
+            <h2 style="font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc;">
+                {{ weapon.name }}
+            </h2>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem;">
+                
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Type</span>
+                    <span style="font-weight: 600;">{{ weapon.weapon_type|capfirst }}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Attack</span>
+                    <span style="font-weight: 600; color: #ef4444;">{{ weapon.attack_display }}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Rarity</span>
+                    <span style="font-weight: 600; color: #f59e0b;">{{ weapon.rarity }}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element</span>
+                    <span style="font-weight: 600;">{% if weapon.element %}{{ weapon.element }}{% else %}None{% endif %}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element Damage</span>
+                    <span style="font-weight: 600;">{{ weapon.element_damage|default:0 }}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Affinity</span>
+                    <span style="font-weight: 600; color: #38bdf8;">{{ weapon.affinity }}%</span>
+                </div>
+
+                {% if weapon.elderseal %}
+                <div style="display: flex; justify-content: space-between; padding-top: 8px;">
+                    <span style="color: #c084fc; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Elderseal</span>
+                    <span style="font-weight: 600; color: #c084fc;">{{ weapon.elderseal|capfirst }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+    </div> 
+</div>
+{% endblock %}
