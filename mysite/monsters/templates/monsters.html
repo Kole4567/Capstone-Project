@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+{% load static %}
+{% load static monsters_extra %}
+
+<div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
+    <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: #a855f7; margin-bottom: 40px; text-transform: uppercase;">
+        Monster Compendium
+    </h1>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto;">
+        
+        {% for monster in monsters %}
+        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); position: relative; overflow: hidden;">
+            
+            {% if monster.is_elder_dragon %}
+            <div style="position: absolute; top: 10px; right: -30px; background: #f59e0b; color: #000; padding: 5px 40px; transform: rotate(45deg); font-size: 0.6rem; font-weight: 900; text-transform: uppercase;">
+                Elder
+            </div>
+            {% endif %}
+
+            <h2 style="font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #a855f7; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc;">
+                {{ monster.name }}
+            </h2>
+            <img
+            src="{% static monster.name|monster_icon %}"
+            alt="{{ monster.name }}"
+            style="width:96px;height:96px;object-fit:contain;margin:0 auto 12px;display:block;"
+            >
+
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.95rem;">
+                
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Species</span>
+                    <span style="font-weight: 600;">{{ monster.monster_type|capfirst }}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Elements</span>
+                    <span style="font-weight: 600; color: #60a5fa;">{{ monster.primary_element|default:"None"|capfirst }}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Ailments</span>
+                    <span style="font-weight: 600; color: #f472b6;">{{ monster.primary_ailment|default:"None"|capfirst }}</span>
+                </div>
+
+                <div style="margin-top: 15px; padding: 12px; background-color: #0f172a; border-radius: 8px; border-left: 4px solid #a855f7;">
+                    <p style="text-align: center; font-size: 0.7rem; font-weight: bold; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase;">Weaknesses</p>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        {% for weakness in monster.weaknesses.all %}
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                            <span>{{ weakness.name|capfirst }}</span>
+                            <span style="color: #f59e0b;">
+                                {% if weakness.stars == 3 %}⭐⭐⭐{% elif weakness.stars == 2 %}⭐⭐{% else %}⭐{% endif %}
+                            </span>
+                        </div>
+                        {% empty %}
+                        <p style="text-align: center; color: #475569; font-size: 0.8rem;">Data classified</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        {% empty %}
+        <div style="grid-column: span 3; text-align: center; padding: 50px; color: #94a3b8;">
+            No monsters recorded in the field guide.
+        </div>
+        {% endfor %}
+
+    </div> 
+</div>
+{% endblock %}

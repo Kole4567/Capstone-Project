@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
+    <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: #f472b6; margin-bottom: 40px; text-transform: uppercase;">
+        Charms Compendium
+    </h1>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto;">
+        
+        {% for charm in charms %}
+        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; justify-content: space-between;">
+            
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #f472b6; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc;">
+                    {{ charm.name }}
+                </h2>
+
+                <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem;">
+                    
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Rarity</span>
+                        <span style="font-weight: 600; color: #f59e0b;">{{ charm.rarity|default:"-" }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">External ID</span>
+                        <span style="font-weight: 400; color: #64748b;">#{{ charm.external_id }}</span>
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                        <p style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem; margin-bottom: 8px;">Innate Skills</p>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            {% for charm_skill in charm.charm_skills.all %}
+                            <div style="display: flex; justify-content: space-between; background: rgba(244, 114, 182, 0.1); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #f472b6;">
+                                <span style="color: #f472b6; font-weight: 600;">{{ charm_skill.skill.name }}</span>
+                                <span style="font-weight: bold;">Lv {{ charm_skill.level }}</span>
+                            </div>
+                            {% empty %}
+                            <p style="color: #475569; font-style: italic; font-size: 0.85rem; text-align: center;">No skills mapped</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; text-align: center; border-top: 1px solid #334155; padding-top: 10px;">
+                <span style="font-size: 0.65rem; color: #475569; text-transform: uppercase;">
+                    Last Sync: {{ charm.updated_at|date:"Y-m-d" }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+
+    </div> 
+</div>
+{% endblock %}

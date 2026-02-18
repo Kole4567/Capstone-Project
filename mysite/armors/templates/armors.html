@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
+    <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: #10b981; margin-bottom: 40px; text-transform: uppercase;">
+        Armor Compendium
+    </h1>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto;">
+        
+        {% for piece in armors %}
+        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; justify-content: space-between;">
+            
+            <div>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="font-size: 1.4rem; font-weight: bold; margin: 0; color: #f8fafc;">{{ piece.name }}</h2>
+                    <p style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; margin-top: 4px;">{{ piece.armor_set_name }} ({{ piece.armor_set_rank|upper }})</p>
+                    <div style="height: 2px; background: #10b981; width: 60%; margin: 10px auto 0;"></div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem;">
+                    
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #94a3b8; font-weight: bold; font-size: 0.7rem;">TYPE / RARITY</span>
+                        <span style="font-weight: 600;">{{ piece.armor_type|capfirst }} / <span style="color: #f59e0b;">R{{ piece.rarity }}</span></span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: #94a3b8; font-weight: bold; font-size: 0.7rem;">DEFENSE (BASE/MAX)</span>
+                        <span style="font-weight: 600; color: #10b981;">{{ piece.defense_base }} / {{ piece.defense_max }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 5px 8px; border-radius: 6px; margin-top: 5px;">
+                        <span style="color: #94a3b8; font-weight: bold; font-size: 0.7rem;">SLOTS</span>
+                        <div style="display: flex; gap: 4px;">
+                            {% if piece.slot_1 > 0 %}<span style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">①</span>{% endif %}
+                            {% if piece.slot_2 > 0 %}<span style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">②</span>{% endif %}
+                            {% if piece.slot_3 > 0 %}<span style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">③</span>{% endif %}
+                            {% if piece.slot_1 == 0 and piece.slot_2 == 0 and piece.slot_3 == 0 %}
+                            <span style="color: #475569; font-size: 0.7rem;">None</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                        <p style="color: #94a3b8; font-weight: bold; font-size: 0.7rem; margin-bottom: 6px; text-transform: uppercase;">Armor Skills</p>
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            {% for armor_skill in piece.armor_skills.all %}
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 4px;">
+                                <span style="color: #34d399;">{{ armor_skill.skill.name }}</span>
+                                <span style="font-weight: bold;">Lv {{ armor_skill.level }}</span>
+                            </div>
+                            {% empty %}
+                            <span style="color: #475569; font-style: italic; font-size: 0.8rem;">No innate skills</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px; display: flex; justify-content: space-around; background: #0f172a; border-radius: 8px; padding: 8px; border: 1px solid #334155;">
+                        <div style="text-align: center;"><p style="color: #ef4444; margin:0; font-size: 0.7rem;">Fire</p><p style="margin:0; font-weight: bold;">{{ piece.res_fire }}</p></div>
+                        <div style="text-align: center;"><p style="color: #3b82f6; margin:0; font-size: 0.7rem;">Wat</p><p style="margin:0; font-weight: bold;">{{ piece.res_water }}</p></div>
+                        <div style="text-align: center;"><p style="color: #fbbf24; margin:0; font-size: 0.7rem;">Thu</p><p style="margin:0; font-weight: bold;">{{ piece.res_thunder }}</p></div>
+                        <div style="text-align: center;"><p style="color: #60a5fa; margin:0; font-size: 0.7rem;">Ice</p><p style="margin:0; font-weight: bold;">{{ piece.res_ice }}</p></div>
+                        <div style="text-align: center;"><p style="color: #a855f7; margin:0; font-size: 0.7rem;">Dra</p><p style="margin:0; font-weight: bold;">{{ piece.res_dragon }}</p></div>
+                    </div>
+                </div>
+            </div>
+
+            {% if piece.armor_set_bonus_external_id %}
+            <div style="margin-top: 20px; border-top: 1px solid #334155; padding-top: 12px; text-align: center;">
+                <span style="background: #064e3b; color: #6ee7b7; font-size: 0.65rem; font-weight: 800; padding: 3px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 1px;">
+                    Set Bonus Available
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+    </div> 
+</div>
+{% endblock %}
