@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
+
+{% load static %}
+{% load static monsters_extra %}
+
 <div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
     <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: #3b82f6; margin-bottom: 40px; text-transform: uppercase;">
         Weapon Compendium
@@ -13,6 +17,12 @@
             <h2 style="font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc;">
                 {{ weapon.name }}
             </h2>
+
+            <img 
+                src="{% static weapon.weapon_type|weapon_icon %}" 
+                alt="{{ weapon.name }}" 
+                style="width:96px; height:96px; object-fit:contain; margin:0 auto 12px; display:block; image-rendering: pixelated;"
+            >
 
             <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem;">
                 
