@@ -1,4 +1,5 @@
 {% load static %}
+{% load socialaccount %}
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
@@ -11,7 +12,15 @@
         <a href="{% url 'armors_index' %}" class="btn btn-ghost">Armor</a>
         <a href="{% url 'charms_index' %}" class="btn btn-ghost">Charms</a>
         <a href="{% url 'monsters_index' %}" class="btn btn-ghost">Monsters</a>
-    </div>
+        {% if user.is_authenticated %}
+            <p>Logged in as: {{ user.username }}</p>
+            <a href="{% url 'account_logout' %}" class="btn btn-ghost">Logout</a>
+        {% else %}
+            <a href="{% provider_login_url 'google' %}" class="btn btn-primary">
+                Login with Google
+            </a>
+        {% endif %}
+            </div>
 
     {% block content %}{% endblock %}
 </body>

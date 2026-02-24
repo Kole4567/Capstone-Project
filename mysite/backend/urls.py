@@ -48,4 +48,5 @@ urlpatterns = [
     path('armors/', include('armors.urls')),
     path('charms/', include('charms.urls')),
     path('monsters/', include('monsters.urls')),
+    path('accounts/', include('allauth.urls')),
 ]
