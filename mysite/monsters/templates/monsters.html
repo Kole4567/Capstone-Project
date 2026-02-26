@@ -63,7 +63,8 @@
                 <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #94a3b8; margin-bottom: 10px;">
                     Prepare for the Hunt
                 </p>
-                <a href="{% url 'monster_build' monster.id %}" class="btn btn-primary w-full text-white">
+                <a href="{% url 'monster_build' monster.id %}" 
+                    class="build-link btn btn-primary w-full text-white flex items-center justify-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
@@ -80,4 +81,53 @@
 
     </div> 
 </div>
+
+
+<div id="loading-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:99999; align-items:center; justify-content:center; background-color:rgba(2,6,23,0.8); backdrop-filter:blur(12px);">
+    <div style="text-align:center;">
+        <div style="width:64px; height:64px; border:4px solid #10b981; border-right-color:transparent; border-radius:50%; animation:spin 1s linear infinite; display:inline-block; margin-bottom:24px;"></div>
+        <h2 style="font-size:1.5rem; font-weight:900; font-style:italic; color:white; text-transform:uppercase; letter-spacing:0.3em; animation:pulse 2s infinite;">
+            Optimizing Build
+        </h2>
+        <p style="color:#34d399; font-size:0.75rem; font-weight:bold; text-transform:uppercase; margin-top:8px; letter-spacing:0.1em;">
+            Analyzing Weaknesses & Slots
+        </p>
+    </div>
+</div>
+
+<style>
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const overlay = document.getElementById("loading-overlay");
+    const buildButtons = document.querySelectorAll(".build-link");
+
+    buildButtons.forEach(button => {
+        button.addEventListener("click", () => {
+            overlay.style.display = "flex";
+            overlay.style.position = "fixed";
+            overlay.style.top = "0";
+            overlay.style.left = "0";
+            overlay.style.width = "100%";
+            overlay.style.height = "100%";
+            overlay.style.zIndex = "99999";
+            overlay.style.backgroundColor = "rgba(2, 6, 23, 0.8)";
+            overlay.style.backdropFilter = "blur(12px)";
+            overlay.style.alignItems = "center";
+            overlay.style.justifyContent = "center";
+        });
+    });
+});
+
+window.addEventListener("pageshow", () => {
+    document.getElementById("loading-overlay").style.display = "none";
+});
+</script>
 {% endblock %}

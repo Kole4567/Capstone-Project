@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
+    <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: #3b82f6; margin-bottom: 40px; text-transform: uppercase;">
+        Decorations
+    </h1>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto;">
+        
+        {% for deco in decorations %}
+        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column;">
+            
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="font-size: 1.4rem; font-weight: bold; margin: 0; color: #f8fafc;">{{ deco.name }}</h2>
+                <div style="height: 2px; background: #3b82f6; width: 60%; margin: 10px auto 0;"></div>
+            </div>
+
+            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px;">
+                <li style="font-size: 1rem; color: #94a3b8;">
+                    <strong style="color: white;">Rarity:</strong> 
+                    <span style="color: #f59e0b; font-weight: bold;">R{{ deco.rarity }}</span>
+                </li>
+
+                <li>
+                    <p style="color: #94a3b8; font-weight: bold; font-size: 0.75rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Innate Skills
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        {% for deco_skill in deco.decoration_skills.all %}
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; background: rgba(59, 130, 246, 0.1); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                            <span style="color: #60a5fa; font-weight: 600;">{{ deco_skill.skill.name }}</span>
+                            <span style="font-weight: bold;">Lv {{ deco_skill.level }}</span>
+                        </div>
+                        {% empty %}
+                        <span style="color: #475569; font-style: italic; font-size: 0.8rem;">No skills identified</span>
+                        {% endfor %}
+                    </div>
+                </li>
+                <div style="margin-top: 15px; border-top: 1px solid #334155; padding-top: 12px;">
+                <p style="color: #94a3b8; font-weight: bold; font-size: 0.7rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">
+                    Compatible Slots
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">HEAD</span>
+                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">CHEST</span>
+                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">ARMS</span>
+                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WAIST</span>
+                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">LEGS</span>
+                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WEAPON</span>
+                </div>
+            </div>
+            </ul>
+        </div>
+        {% endfor %}
+
+    </div> 
+</div>
+{% endblock %}

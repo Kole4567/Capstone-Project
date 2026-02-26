@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'armors',
     'charms',
     'monsters',
+    'decorations',
+    'inventory',
     'django.contrib.sites',
     'allauth',
     'allauth.account',
