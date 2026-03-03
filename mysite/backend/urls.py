@@ -50,4 +50,5 @@ urlpatterns = [
     path('monsters/', include('monsters.urls')),
     path('decorations/', include('decorations.urls')),
     path('accounts/', include('allauth.urls')),
+    path('inventory/', include('inventory.urls')),
 ]

@@ -1,9 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from weapons.models import Weapon
-from armors.models import Armor
-from charms.models import Charm
-
+from MonsterHunterWorld.models import Weapon, Armor, Charm, Decoration
 
 class WeaponInventory(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='weapon_inventory')
@@ -45,3 +42,21 @@ class CharmInventory(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.charm.name}"
+    
+
+class DecorationInventory(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="decoration_inventory")
+    decoration = models.ForeignKey(Decoration, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "decoration"],
+                name="uniq_decoration_inventory_user_decoration",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.decoration.name} x{self.quantity}"

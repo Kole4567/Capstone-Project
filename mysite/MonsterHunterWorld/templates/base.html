@@ -16,6 +16,9 @@
 
         
         {% if user.is_authenticated %}
+            <a href="{% url 'inventory_home' %}" class="btn btn-ghost">
+                Inventory
+            </a>
             <a href="{% url 'account_logout' %}" class="btn btn-ghost">Logout</a>
         {% else %}
             <a href="{% provider_login_url 'google' %}" class="btn btn-primary">

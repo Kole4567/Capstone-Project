@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-7xl mx-auto px-6 py-8">
+
+    <h1 class="text-3xl font-extrabold mb-8">
+        🎒 Your Inventory
+    </h1>
+
+    <!-- ============================= -->
+    <!-- Weapons -->
+    <!-- ============================= -->
+    <div class="mb-10">
+        <h2 class="text-2xl font-bold mb-4">Weapons</h2>
+
+        {% if weapons %}
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {% for item in weapons %}
+                    <div class="card bg-base-200 shadow">
+                        <div class="card-body p-4">
+                            <h3 class="font-semibold text-sm">
+                                {{ item.weapon.name }}
+                            </h3>
+                            <p class="text-xs opacity-70">
+                                {{ item.weapon.weapon_type }} · R{{ item.weapon.rarity }}
+                            </p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="opacity-60">No weapons owned.</p>
+        {% endif %}
+    </div>
+
+    <!-- ============================= -->
+    <!-- Armor -->
+    <!-- ============================= -->
+    <div class="mb-10">
+        <h2 class="text-2xl font-bold mb-4">Armor</h2>
+
+        {% if armors %}
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {% for item in armors %}
+                    <div class="card bg-base-200 shadow">
+                        <div class="card-body p-4">
+                            <h3 class="font-semibold text-sm">
+                                {{ item.armor.name }}
+                            </h3>
+                            <p class="text-xs opacity-70">
+                                {{ item.armor.armor_type }} · R{{ item.armor.rarity }}
+                            </p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="opacity-60">No armor owned.</p>
+        {% endif %}
+    </div>
+
+    <!-- ============================= -->
+    <!-- Charms -->
+    <!-- ============================= -->
+    <div class="mb-10">
+        <h2 class="text-2xl font-bold mb-4">Charms</h2>
+
+        {% if charms %}
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {% for item in charms %}
+                    <div class="card bg-base-200 shadow">
+                        <div class="card-body p-4">
+                            <h3 class="font-semibold text-sm">
+                                {{ item.charm.name }}
+                            </h3>
+                            {% if item.charm.rarity %}
+                                <p class="text-xs opacity-70">
+                                    R{{ item.charm.rarity }}
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="opacity-60">No charms owned.</p>
+        {% endif %}
+    </div>
+
+    <!-- ============================= -->
+    <!-- Decorations -->
+    <!-- ============================= -->
+    <div>
+        <h2 class="text-2xl font-bold mb-4">Decorations</h2>
+
+        {% if decorations %}
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {% for item in decorations %}
+                    <div class="card bg-base-200 shadow">
+                        <div class="card-body p-4">
+                            <h3 class="font-semibold text-sm">
+                                {{ item.decoration.name }}
+                            </h3>
+                            <p class="text-xs opacity-70">
+                                R{{ item.decoration.rarity }} · ×{{ item.quantity }}
+                            </p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="opacity-60">No decorations owned.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

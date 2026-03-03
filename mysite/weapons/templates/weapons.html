@@ -62,10 +62,73 @@
                     <span style="font-weight: 600; color: #c084fc;">{{ weapon.elderseal|capfirst }}</span>
                 </div>
                 {% endif %}
+
+               {% if user.is_authenticated %}
+                    {% if weapon.id in owned_weapon_ids %}
+                        <button
+                            onclick="removeFromInventory('weapon', {{ weapon.id }}, this)"
+                            style="width:100%; background:#ef4444;">
+                            − Remove from Inventory
+                        </button>
+                    {% else %}
+                        <button
+                            onclick="addToInventory('weapon', {{ weapon.id }}, this)"
+                            style="width:100%; background:#3b82f6;">
+                            + Add to Inventory
+                        </button>
+                    {% endif %}
+                {% endif %}
             </div>
         </div>
         {% endfor %}
 
     </div> 
 </div>
+
+<script>
+function addToInventory(type, id, btn) {
+    fetch(`/inventory/add/${type}/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.added) {
+            btn.textContent = '− Remove from Inventory';
+            btn.style.backgroundColor = '#ef4444';
+            btn.onclick = () => removeFromInventory(type, id, btn);
+        } else {
+            btn.textContent = data.message;
+        }
+    })
+    .catch(() => showError(btn));
+}
+
+function removeFromInventory(type, id, btn) {
+    fetch(`/inventory/remove/${type}/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.removed) {
+            btn.textContent = '+ Add to Inventory';
+            btn.style.backgroundColor = '#3b82f6';
+            btn.onclick = () => addToInventory(type, id, btn);
+        } else {
+            btn.textContent = data.message;
+        }
+    })
+    .catch(() => showError(btn));
+}
+
+function showError(btn) {
+    btn.textContent = 'Error';
+    btn.style.backgroundColor = '#ef4444';
+}
+</script>
 {% endblock %}
