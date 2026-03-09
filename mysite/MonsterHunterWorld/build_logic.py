@@ -1,5 +1,5 @@
 # モデルの絶対: model import
-from MonsterHunterWorld.models import Weapon, Armor, Charm, Skill, Monster
+from MonsterHunterWorld.models import Weapon, Armor, Charm, Skill, Monster, Decoration
 
 
 # ===============================
@@ -78,6 +78,68 @@ def score_charm(charm, armor_skill_names):
     return base_score + synergy_bonus
 
 
+def score_decoration(decoration, armor_skill_names):
+    score = 0
+
+    for sk in decoration.decoration_skills.all():
+        score += sk.skill.max_level * 8
+
+        # Armorと同じスキルならシナジー : bonus for same skill with armors
+        if sk.skill.name in armor_skill_names:
+            score += 20
+
+    return score
+
+
+def select_decorations_for_armor(armor, decorations):
+
+    slots = [armor.slot_1, armor.slot_2, armor.slot_3]
+    slots = [s for s in slots if s != 0]
+
+    armor_skill_names = {
+        sk.skill.name for sk in armor.armor_skills.all()
+    }
+
+    selected = []
+
+    for slot_level in slots:
+
+        # スロットと一致するDecorationのみ: check the name of decoration with slot number
+        possible = [
+            d for d in decorations
+            if int(d.name[-1]) == slot_level
+        ]
+
+        if not possible:
+            continue
+
+        best = max(
+            possible,
+            key=lambda d: score_decoration(d, armor_skill_names)
+        )
+
+        selected.append(best)
+
+    return selected
+
+
+def score_armor_total(monster, armor, decorations):
+
+    base = score_armor(monster, armor)
+
+    decs = select_decorations_for_armor(armor, decorations)
+
+    dec_score = 0
+
+    armor_skill_names = {
+        sk.skill.name for sk in armor.armor_skills.all()
+    }
+
+    for d in decs:
+        dec_score += score_decoration(d, armor_skill_names)
+
+    return base + dec_score
+
 # ===============================
 # 軽量ビルド生成: creating the best build
 # ===============================
@@ -87,6 +149,7 @@ def best_build_fast(monster):
 
     weapons = list(Weapon.objects.all())
     charms = list(Charm.objects.all())
+    decorations = list(Decoration.objects.all())
 
     armors = {
         "head": list(Armor.objects.filter(armor_type="head")),
@@ -168,6 +231,13 @@ def best_build_fast(monster):
         "gloves": best_gloves,
         "waist": best_waist,
         "charm": best_charm,
+        "decorations": {
+            "head": select_decorations_for_armor(best_head, decorations),
+            "chest": select_decorations_for_armor(best_chest, decorations),
+            "legs": select_decorations_for_armor(best_legs, decorations),
+            "gloves": select_decorations_for_armor(best_gloves, decorations),
+            "waist": select_decorations_for_armor(best_waist, decorations),
+        }
     }
 
 

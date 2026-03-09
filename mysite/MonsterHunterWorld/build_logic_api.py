@@ -14,7 +14,7 @@ import django
 django.setup()
 
 # モデルの絶対 import
-from MonsterHunterWorld.models import Weapon, Armor, Charm, Skill, Monster
+from MonsterHunterWorld.models import Weapon, Armor, Charm, Skill, Monster, Decoration
 
 
 # ===============================
@@ -87,6 +87,66 @@ def score_charm(charm, armor_skill_names):
 
     return base_score + synergy_bonus
 
+def score_decoration(decoration, armor_skill_names):
+    score = 0
+
+    for sk in decoration.decoration_skills.all():
+        score += sk.skill.max_level * 8
+
+        # Armorと同じスキルならシナジー
+        if sk.skill.name in armor_skill_names:
+            score += 20
+
+    return score
+
+
+def select_decorations_for_armor(armor, decorations):
+
+    slots = [armor.slot_1, armor.slot_2, armor.slot_3]
+    slots = [s for s in slots if s != 0]
+
+    armor_skill_names = {
+        sk.skill.name for sk in armor.armor_skills.all()
+    }
+
+    selected = []
+
+    for slot_level in slots:
+
+        # スロットと一致するDecorationのみ
+        possible = [
+            d for d in decorations
+            if int(d.name[-1]) == slot_level
+        ]
+
+        if not possible:
+            continue
+
+        best = max(
+            possible,
+            key=lambda d: score_decoration(d, armor_skill_names)
+        )
+
+        selected.append(best)
+
+    return selected
+
+def score_armor_total(monster, armor, decorations):
+
+    base = score_armor(monster, armor)
+
+    decs = select_decorations_for_armor(armor, decorations)
+
+    dec_score = 0
+
+    armor_skill_names = {
+        sk.skill.name for sk in armor.armor_skills.all()
+    }
+
+    for d in decs:
+        dec_score += score_decoration(d, armor_skill_names)
+
+    return base + dec_score
 
 # ===============================
 # 軽量ビルド生成
@@ -100,7 +160,8 @@ def best_build_fast(monster):
 
     weapons = list(Weapon.objects.all())
     charms = list(Charm.objects.all())
-
+    decorations = list(Decoration.objects.all())
+    
     armors = {
         "head": list(Armor.objects.filter(armor_type="head")),
         "chest": list(Armor.objects.filter(armor_type="chest")),
@@ -181,6 +242,13 @@ def best_build_fast(monster):
         "gloves": best_gloves,
         "waist": best_waist,
         "charm": best_charm,
+        "decorations": {
+            "head": select_decorations_for_armor(best_head, decorations),
+            "chest": select_decorations_for_armor(best_chest, decorations),
+            "legs": select_decorations_for_armor(best_legs, decorations),
+            "gloves": select_decorations_for_armor(best_gloves, decorations),
+            "waist": select_decorations_for_armor(best_waist, decorations),
+        }
     }
 
 
@@ -205,19 +273,35 @@ def run_for_monster(monster_name):
 
     if build["weapon"]:
         print(f"Weapon: {build['weapon'].name}")
+
     if build["head"]:
         print(f"Head: {build['head'].name}")
+        for d in build["decorations"]["head"]:
+            print(f"   - Decoration: {d.name}")
+
     if build["chest"]:
         print(f"Chest: {build['chest'].name}")
+        for d in build["decorations"]["chest"]:
+            print(f"   - Decoration: {d.name}")
+
     if build["legs"]:
         print(f"Legs: {build['legs'].name}")
+        for d in build["decorations"]["legs"]:
+            print(f"   - Decoration: {d.name}")
+
     if build["gloves"]:
         print(f"Gloves: {build['gloves'].name}")
+        for d in build["decorations"]["gloves"]:
+            print(f"   - Decoration: {d.name}")
+
     if build["waist"]:
         print(f"Waist: {build['waist'].name}")
+        for d in build["decorations"]["waist"]:
+            print(f"   - Decoration: {d.name}")
+
     if build["charm"]:
         print(f"Charm: {build['charm'].name}")
 
 
 if __name__ == "__main__":
-    run_for_monster("Aptonoth")
+    run_for_monster("Zinogre")
