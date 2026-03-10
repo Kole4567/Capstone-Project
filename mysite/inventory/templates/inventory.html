@@ -1,115 +1,143 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="max-w-7xl mx-auto px-6 py-8">
+<div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
 
-    <h1 class="text-3xl font-extrabold mb-8">
-        🎒 Your Inventory
+    <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: white; margin-bottom: 8px; text-transform: uppercase;">
+        🎒 {{ request.user.get_full_name|default:request.user.username }}'s Loadout
     </h1>
+    <p style="text-align: center; color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 50px;">
+        Inventory
+    </p>
 
     <!-- ============================= -->
     <!-- Weapons -->
     <!-- ============================= -->
-    <div class="mb-10">
-        <h2 class="text-2xl font-bold mb-4">Weapons</h2>
+    <div style="margin-bottom: 50px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 2px solid #3b82f6; padding-bottom: 10px;">
+            <span style="font-size: 1.5rem;">⚔️</span>
+            <h2 style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #3b82f6; letter-spacing: 0.1em;">Weapons</h2>
+            <span style="margin-left: auto; background: #1e3a5f; color: #3b82f6; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
+                {{ weapons|length }} owned
+            </span>
+        </div>
 
         {% if weapons %}
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
                 {% for item in weapons %}
-                    <div class="card bg-base-200 shadow">
-                        <div class="card-body p-4">
-                            <h3 class="font-semibold text-sm">
-                                {{ item.weapon.name }}
-                            </h3>
-                            <p class="text-xs opacity-70">
-                                {{ item.weapon.weapon_type }} · R{{ item.weapon.rarity }}
-                            </p>
-                        </div>
+                <div style="background-color: #1e293b; border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(59,130,246,0.15); transition: transform 0.2s;">
+                    <div style="height: 3px; background: #3b82f6; border-radius: 999px; margin-bottom: 12px;"></div>
+                    <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;">{{ item.weapon.name }}</h3>
+                    <p style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">{{ item.weapon.weapon_type }}</p>
+                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem;">
+                        <span style="background: #1e3a5f; color: #60a5fa; padding: 2px 8px; border-radius: 4px;">R{{ item.weapon.rarity }}</span>
+                        <span style="color: #ef4444; font-weight: bold;">ATK {{ item.weapon.attack_raw }}</span>
                     </div>
+                </div>
                 {% endfor %}
             </div>
         {% else %}
-            <p class="opacity-60">No weapons owned.</p>
+            <div style="text-align: center; padding: 30px; border: 1px dashed #1e3a5f; border-radius: 12px; color: #475569;">
+                No weapons owned yet.
+            </div>
         {% endif %}
     </div>
 
     <!-- ============================= -->
     <!-- Armor -->
     <!-- ============================= -->
-    <div class="mb-10">
-        <h2 class="text-2xl font-bold mb-4">Armor</h2>
+    <div style="margin-bottom: 50px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 2px solid #10b981; padding-bottom: 10px;">
+            <span style="font-size: 1.5rem;">🛡️</span>
+            <h2 style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #10b981; letter-spacing: 0.1em;">Armor</h2>
+            <span style="margin-left: auto; background: #064e3b; color: #10b981; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
+                {{ armors|length }} owned
+            </span>
+        </div>
 
         {% if armors %}
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
                 {% for item in armors %}
-                    <div class="card bg-base-200 shadow">
-                        <div class="card-body p-4">
-                            <h3 class="font-semibold text-sm">
-                                {{ item.armor.name }}
-                            </h3>
-                            <p class="text-xs opacity-70">
-                                {{ item.armor.armor_type }} · R{{ item.armor.rarity }}
-                            </p>
-                        </div>
+                <div style="background-color: #1e293b; border: 1px solid #10b981; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(16,185,129,0.15);">
+                    <div style="height: 3px; background: #10b981; border-radius: 999px; margin-bottom: 12px;"></div>
+                    <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;">{{ item.armor.name }}</h3>
+                    <p style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">{{ item.armor.armor_type }}</p>
+                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem;">
+                        <span style="background: #064e3b; color: #34d399; padding: 2px 8px; border-radius: 4px;">R{{ item.armor.rarity }}</span>
+                        <span style="color: #10b981; font-weight: bold;">DEF {{ item.armor.defense_base }}</span>
                     </div>
+                </div>
                 {% endfor %}
             </div>
         {% else %}
-            <p class="opacity-60">No armor owned.</p>
+            <div style="text-align: center; padding: 30px; border: 1px dashed #064e3b; border-radius: 12px; color: #475569;">
+                No armor owned yet.
+            </div>
         {% endif %}
     </div>
 
     <!-- ============================= -->
     <!-- Charms -->
     <!-- ============================= -->
-    <div class="mb-10">
-        <h2 class="text-2xl font-bold mb-4">Charms</h2>
+    <div style="margin-bottom: 50px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 2px solid #f472b6; padding-bottom: 10px;">
+            <span style="font-size: 1.5rem;">✨</span>
+            <h2 style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #f472b6; letter-spacing: 0.1em;">Charms</h2>
+            <span style="margin-left: auto; background: #4a1942; color: #f472b6; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
+                {{ charms|length }} owned
+            </span>
+        </div>
 
         {% if charms %}
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
                 {% for item in charms %}
-                    <div class="card bg-base-200 shadow">
-                        <div class="card-body p-4">
-                            <h3 class="font-semibold text-sm">
-                                {{ item.charm.name }}
-                            </h3>
-                            {% if item.charm.rarity %}
-                                <p class="text-xs opacity-70">
-                                    R{{ item.charm.rarity }}
-                                </p>
-                            {% endif %}
-                        </div>
+                <div style="background-color: #1e293b; border: 1px solid #f472b6; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(244,114,182,0.15);">
+                    <div style="height: 3px; background: #f472b6; border-radius: 999px; margin-bottom: 12px;"></div>
+                    <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;">{{ item.charm.name }}</h3>
+                    {% if item.charm.rarity %}
+                    <div style="margin-top: 10px;">
+                        <span style="background: #4a1942; color: #f9a8d4; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;">R{{ item.charm.rarity }}</span>
                     </div>
+                    {% endif %}
+                </div>
                 {% endfor %}
             </div>
         {% else %}
-            <p class="opacity-60">No charms owned.</p>
+            <div style="text-align: center; padding: 30px; border: 1px dashed #4a1942; border-radius: 12px; color: #475569;">
+                No charms owned yet.
+            </div>
         {% endif %}
     </div>
 
     <!-- ============================= -->
     <!-- Decorations -->
     <!-- ============================= -->
-    <div>
-        <h2 class="text-2xl font-bold mb-4">Decorations</h2>
+    <div style="margin-bottom: 50px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 2px solid #ef4444; padding-bottom: 10px;">
+            <span style="font-size: 1.5rem;">💎</span>
+            <h2 style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #ef4444; letter-spacing: 0.1em;">Decorations</h2>
+            <span style="margin-left: auto; background: #450a0a; color: #ef4444; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
+                {{ decorations|length }} owned
+            </span>
+        </div>
 
         {% if decorations %}
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
                 {% for item in decorations %}
-                    <div class="card bg-base-200 shadow">
-                        <div class="card-body p-4">
-                            <h3 class="font-semibold text-sm">
-                                {{ item.decoration.name }}
-                            </h3>
-                            <p class="text-xs opacity-70">
-                                R{{ item.decoration.rarity }} · ×{{ item.quantity }}
-                            </p>
-                        </div>
+                <div style="background-color: #1e293b; border: 1px solid #ef4444; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(239,68,68,0.15);">
+                    <div style="height: 3px; background: #ef4444; border-radius: 999px; margin-bottom: 12px;"></div>
+                    <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;">{{ item.decoration.name }}</h3>
+                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem;">
+                        <span style="background: #450a0a; color: #fca5a5; padding: 2px 8px; border-radius: 4px;">R{{ item.decoration.rarity }}</span>
+                        <span style="color: #ef4444; font-weight: 900;">×{{ item.quantity }}</span>
                     </div>
+                </div>
                 {% endfor %}
             </div>
         {% else %}
-            <p class="opacity-60">No decorations owned.</p>
+            <div style="text-align: center; padding: 30px; border: 1px dashed #450a0a; border-radius: 12px; color: #475569;">
+                No decorations owned yet.
+            </div>
         {% endif %}
     </div>
 

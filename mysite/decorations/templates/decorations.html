@@ -37,22 +37,113 @@
                     </div>
                 </li>
                 <div style="margin-top: 15px; border-top: 1px solid #334155; padding-top: 12px;">
-                <p style="color: #94a3b8; font-weight: bold; font-size: 0.7rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">
-                    Compatible Slots
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">HEAD</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">CHEST</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">ARMS</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WAIST</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">LEGS</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WEAPON</span>
+                    <p style="color: #94a3b8; font-weight: bold; font-size: 0.7rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">
+                        Compatible Slots
+                    </p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">HEAD</span>
+                        <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">CHEST</span>
+                        <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">ARMS</span>
+                        <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WAIST</span>
+                        <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">LEGS</span>
+                        <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WEAPON</span>
+                    </div>
                 </div>
-            </div>
             </ul>
+
+            {% if user.is_authenticated %}
+<div style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
+    <button
+        onclick="addToInventory('decoration', {{ deco.id }}, this)"
+        style="width:100%; background:#3b82f6; color:white; border:none; border-radius:8px; padding:10px; font-weight:700; font-size:0.85rem; text-transform:uppercase; cursor:pointer;">
+        + Add to Inventory
+    </button>
+    {% if deco.id in owned_decoration_ids %}
+    <button
+        onclick="removeFromInventory('decoration', {{ deco.id }}, this)"
+        style="width:100%; background:#ef4444; color:white; border:none; border-radius:8px; padding:10px; font-weight:700; font-size:0.85rem; text-transform:uppercase; cursor:pointer;">
+        − Remove One
+    </button>
+    {% endif %}
+</div>
+{% endif %}
+
         </div>
         {% endfor %}
 
     </div> 
 </div>
+
+
+
+<script>
+function addToInventory(type, id, btn) {
+    fetch(`/inventory/add/${type}/${id}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (type === 'decoration') {
+            btn.textContent = `+ Add More (x${data.quantity})`;
+            const container = btn.parentElement;
+            let removeBtn = container.querySelector('.remove-btn');
+            if (!removeBtn) {
+                removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.style.cssText = 'width:100%; background:#ef4444; color:white; border:none; border-radius:8px; padding:10px; font-weight:700; font-size:0.85rem; text-transform:uppercase; cursor:pointer; margin-top:0;';
+                removeBtn.textContent = '− Remove One';
+                container.appendChild(removeBtn);
+            }
+            // Always reassign onclick so it stays fresh
+            removeBtn.onclick = () => removeFromInventory(type, id, removeBtn);
+        } else if (data.added) {
+            btn.textContent = '− Remove from Inventory';
+            btn.style.backgroundColor = '#ef4444';
+            btn.onclick = () => removeFromInventory(type, id, btn);
+        } else {
+            btn.textContent = data.message;
+        }
+    })
+    .catch(() => showError(btn));
+}
+
+function removeFromInventory(type, id, btn) {
+    fetch(`/inventory/remove/${type}/${id}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (type === 'decoration') {
+            const container = btn.parentElement;
+            const addBtn = container.querySelector('button:not(.remove-btn)');
+            if (data.quantity === 0) {
+                btn.remove();
+                if (addBtn) {
+                    addBtn.textContent = '+ Add to Inventory';
+                    // Reassign onclick so adding works again fresh
+                    addBtn.onclick = () => addToInventory(type, id, addBtn);
+                }
+            } else {
+                if (addBtn) addBtn.textContent = `+ Add More (x${data.quantity})`;
+                // Keep remove button and keep its onclick fresh
+                btn.onclick = () => removeFromInventory(type, id, btn);
+            }
+        } else if (data.removed) {
+            btn.textContent = '+ Add to Inventory';
+            btn.style.backgroundColor = '#3b82f6';
+            btn.onclick = () => addToInventory(type, id, btn);
+        } else {
+            btn.textContent = data.message;
+        }
+    })
+    .catch(() => showError(btn));
+}
+
+function showError(btn) {
+    btn.textContent = 'Error';
+    btn.style.backgroundColor = '#ef4444';
+}
+</script>
 {% endblock %}
