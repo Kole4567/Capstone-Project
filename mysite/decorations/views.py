@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.core.paginator import Paginator
 from urllib.parse import urlencode
 from MonsterHunterWorld.models import Decoration
+from inventory.models import DecorationInventory
 
 
 def decorations_index(request):
@@ -16,6 +17,12 @@ def decorations_index(request):
         decos_qs = decos_qs.filter(rarity=rarity_filter)
 
     rarities = Decoration.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
+
+    owned_decoration_ids = set()
+    if request.user.is_authenticated:
+        owned_decoration_ids = set(
+            DecorationInventory.objects.filter(user=request.user).values_list('decoration_id', flat=True)
+        )
 
     try:
         page_size = int(request.GET.get("page_size", 15))
@@ -43,4 +50,5 @@ def decorations_index(request):
         'rarity_filter': rarity_filter,
         'rarities': rarities,
         'filter_qs': filter_qs,
+        'owned_decoration_ids': owned_decoration_ids,
     })

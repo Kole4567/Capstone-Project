@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.core.paginator import Paginator
 from urllib.parse import urlencode
 from MonsterHunterWorld.models import Armor
+from inventory.models import ArmorInventory
 
 
 def armors_index(request):
@@ -24,6 +25,12 @@ def armors_index(request):
     armor_types = Armor.objects.values_list('armor_type', flat=True).distinct().order_by('armor_type')
     rarities = Armor.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
     ranks = Armor.objects.values_list('armor_set_rank', flat=True).distinct().order_by('armor_set_rank')
+
+    owned_armor_ids = set()
+    if request.user.is_authenticated:
+        owned_armor_ids = set(
+            ArmorInventory.objects.filter(user=request.user).values_list('armor_id', flat=True)
+        )
 
     try:
         page_size = int(request.GET.get("page_size", 15))
@@ -59,4 +66,5 @@ def armors_index(request):
         'rarities': rarities,
         'ranks': ranks,
         'filter_qs': filter_qs,
+        'owned_armor_ids': owned_armor_ids,
     })

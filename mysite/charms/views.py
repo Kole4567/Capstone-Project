@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.core.paginator import Paginator
 from urllib.parse import urlencode
 from MonsterHunterWorld.models import Charm
+from inventory.models import CharmInventory
 
 
 def charms_index(request):
@@ -16,6 +17,12 @@ def charms_index(request):
         charms_qs = charms_qs.filter(rarity=rarity_filter)
 
     rarities = Charm.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
+
+    owned_charm_ids = set()
+    if request.user.is_authenticated:
+        owned_charm_ids = set(
+            CharmInventory.objects.filter(user=request.user).values_list('charm_id', flat=True)
+        )
 
     try:
         page_size = int(request.GET.get("page_size", 15))
@@ -43,4 +50,5 @@ def charms_index(request):
         'rarity_filter': rarity_filter,
         'rarities': rarities,
         'filter_qs': filter_qs,
+        'owned_charm_ids': owned_charm_ids,
     })

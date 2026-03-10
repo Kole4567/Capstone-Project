@@ -2,74 +2,74 @@
 {% block content %}
 
 <div class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-200">
-  <div class="max-w-7xl mx-auto px-10 py-16 grid grid-cols-1 lg:grid-cols-3 gap-12">
+  <div class="max-w-7xl mx-auto px-10 py-16">
 
-<!-- LEFT COLUMN -->
-<div class="space-y-6">
-    <h1 class="text-4xl font-extrabold tracking-wide italic">
+    <!-- TITLE -->
+    <h1 class="text-4xl font-extrabold tracking-wide italic mb-12">
         Recommended Build for<br>
-    <span class="text-emerald-400 uppercase">{{ monster.name }}</span>
+        <span class="text-emerald-400 uppercase">{{ monster.name }}</span>
     </h1>
-        <a href="{% url 'monsters_index' %}" class="inline-flex items-center gap-2 mt-8 text-slate-300 hover:text-white transition">
-        ← Back to Monsters
-    </a>
-</div>
 
-<!-- RIGHT COLUMN -->
-<div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
+    <!-- CARDS GRID -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 
-    <!-- WEAPON CARD -->
-    <div class="relative bg-slate-800/60 backdrop-blur-xl rounded-xl shadow-xl p-6 border border-slate-700">
-    <span class="absolute left-0 top-0 h-full w-1 bg-purple-500 rounded-l-xl"></span>
+        <!-- WEAPON CARD -->
+        <div style="position:relative; background:rgba(30,41,59,0.6); backdrop-filter:blur(24px); border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); padding:24px; border:1px solid #3b82f6;">
+            <span style="position:absolute; left:0; top:0; height:100%; width:4px; background:#3b82f6; border-radius:12px 0 0 12px;"></span>
+            <h2 style="font-size:1.1rem; font-weight:600; margin-bottom:16px; border-bottom:1px solid #334155; padding-bottom:8px; color:#60a5fa;">
+                ⚔️ Weapon Selection
+            </h2>
+            <ul class="space-y-3 text-sm">
+                <li><strong>Name:</strong> {{ build.weapon.name }}</li>
+                <li><strong>Type:</strong> {{ build.weapon.weapon_type|capfirst }}</li>
+                <li><strong>Rarity:</strong> {{ build.weapon.rarity }}</li>
+                <li><strong>Attack:</strong> {{ build.weapon.attack_raw }}</li>
+                {% if build.weapon.element %}
+                <li>
+                    <strong>Element:</strong>
+                    <span style="color:#93c5fd; font-size:0.75rem;">
+                        {{ build.weapon.element }}: {{ build.weapon.element_damage }}
+                    </span>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
 
-        <h2 class="text-lg font-semibold mb-4 border-b border-slate-700 pb-2">
-            Weapon Selection
-        </h2>
+        <!-- ARMOR CARD -->
+        <div style="position:relative; background:rgba(30,41,59,0.6); backdrop-filter:blur(24px); border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); padding:24px; border:1px solid #10b981;">
+            <span style="position:absolute; left:0; top:0; height:100%; width:4px; background:#10b981; border-radius:12px 0 0 12px;"></span>
+            <h2 style="font-size:1.1rem; font-weight:600; margin-bottom:16px; border-bottom:1px solid #334155; padding-bottom:8px; color:#34d399;">
+                🛡️ Armor Set Details
+            </h2>
+            <ul class="space-y-3 text-sm">
+                <li><strong>Head:</strong> {{ build.head.name }}</li>
+                <li><strong>Chest:</strong> {{ build.chest.name }}</li>
+                <li><strong>Arms:</strong> {{ build.gloves.name }}</li>
+                <li><strong>Waist:</strong> {{ build.waist.name }}</li>
+                <li><strong>Legs:</strong> {{ build.legs.name }}</li>
+            </ul>
+        </div>
 
-        <ul class="space-y-3 text-sm">
-            <li><strong>Name:</strong> {{ build.weapon.name }}</li>
-            <li><strong>Type:</strong> {{ build.weapon.weapon_type|capfirst }}</li>
-            <li><strong>Rarity:</strong> {{ build.weapon.rarity }}</li>
-            <li><strong>Attack:</strong> {{ build.weapon.attack_raw }}</li>
-            
-            {% if build.weapon.element %}
-            <li>
-                <strong>Element:</strong> 
-                <span class="text-white-400 text-xs">
-                    {{ build.weapon.element }}: {{ build.weapon.element_damage }}
-                </span>
-            </li>
-            {% endif %}
-        </ul>
-    </div>
-
-    <!-- ARMOR CARD -->
-    <div class="bg-slate-800/60 backdrop-blur-xl rounded-xl shadow-xl p-6 border border-slate-700 md:row-span-2">
-        <h2 class="text-lg font-semibold mb-4 border-b border-slate-700 pb-2">
-            Armor Set Details
-        </h2>
-
-        <ul class="space-y-3 text-sm">
-            <li><strong>Head:</strong> {{ build.head.name }}</li>
-            <li><strong>Chest:</strong> {{ build.chest.name }}</li>
-            <li><strong>Arms:</strong> {{ build.gloves.name }}</li>
-            <li><strong>Waist:</strong> {{ build.waist.name }}</li>
-            <li><strong>Legs:</strong> {{ build.legs.name }}</li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- CHARM CARD -->
-    <div class="relative bg-slate-800/60 backdrop-blur-xl rounded-xl shadow-xl p-6 border border-slate-700">
-        <span class="absolute left-0 top-0 h-full w-1 bg-orange-400 rounded-l-xl"></span>
-
-        <h2 class="text-lg font-semibold mb-3">Equipped Charm</h2>
-        <ul class="space-y-3 text-sm">
-            <li><strong>Charm:</strong> {{ build.charm.name }}</li>
-        </ul>
-    </div>
+        <!-- CHARM CARD -->
+        <div style="position:relative; background:rgba(30,41,59,0.6); backdrop-filter:blur(24px); border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); padding:24px; border:1px solid #f472b6;">
+            <span style="position:absolute; left:0; top:0; height:100%; width:4px; background:#f472b6; border-radius:12px 0 0 12px;"></span>
+            <h2 style="font-size:1.1rem; font-weight:600; margin-bottom:16px; border-bottom:1px solid #334155; padding-bottom:8px; color:#f9a8d4;">
+                ✨ Equipped Charm
+            </h2>
+            <ul class="space-y-3 text-sm">
+                <li><strong>Charm:</strong> {{ build.charm.name }}</li>
+            </ul>
+        </div>
 
     </div>
+
+    <!-- BACK BUTTON -->
+    <div class="mt-12">
+        <a href="{% url 'monsters_index' %}" class="inline-flex items-center gap-2 text-slate-300 hover:text-white transition">
+            ← Back to Monsters
+        </a>
+    </div>
+
   </div>
 </div>
 

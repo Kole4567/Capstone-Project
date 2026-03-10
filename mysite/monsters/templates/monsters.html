@@ -57,11 +57,23 @@
 
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; align-items: stretch;">
             {% for monster in monsters %}
-            <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); position: relative; overflow: hidden; display: flex; flex-direction: column;">
+            <div id="card-{{ monster.id }}" style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); position: relative; overflow: hidden; display: flex; flex-direction: column;">
 
                 {% if monster.is_elder_dragon %}
                 <div style="position: absolute; top: 10px; right: -30px; background: #f59e0b; color: #000; padding: 5px 40px; transform: rotate(45deg); font-size: 0.6rem; font-weight: 900; text-transform: uppercase; z-index: 10;">
                     Elder
+                </div>
+                {% endif %}
+
+                {% if user.is_authenticated %}
+                <div id="stamp-{{ monster.id }}" style="display:{% if monster.id in slayed_monster_ids %}flex{% else %}none{% endif %}; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:20; align-items:center; justify-content:center; border-radius:12px; flex-direction:column; gap:12px;">
+                    <div style="border: 6px solid #ef4444; border-radius: 8px; padding: 12px 28px; transform: rotate(-15deg); animation: stampIn 0.4s ease forwards;">
+                        <p style="font-size: 2rem; font-weight: 900; color: #ef4444; text-transform: uppercase; letter-spacing: 0.2em; margin:0;">SLAYED</p>
+                    </div>
+                    <p style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;">{{ monster.name }} has been hunted</p>
+                    <button onclick="undoSlay({{ monster.id }})" style="margin-top:8px; background:transparent; border:1px solid #475569; color:#94a3b8; padding:6px 16px; border-radius:6px; font-size:0.75rem; cursor:pointer; text-transform:uppercase;">
+                        Undo
+                    </button>
                 </div>
                 {% endif %}
 
@@ -104,8 +116,8 @@
                     </div>
                 </div>
 
-                <div style="margin-top: 30px; display: flex; flex-direction: column; align-items: center;">
-                    <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #94a3b8; margin-bottom: 10px;">
+                <div style="margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                    <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #94a3b8; margin-bottom: 0;">
                         Prepare for the Hunt
                     </p>
                     <a href="{% url 'monster_build' monster.id %}"
@@ -115,6 +127,14 @@
                         </svg>
                         Generate Best Build
                     </a>
+                    {% if user.is_authenticated %}
+                    <button
+                        onclick="slayMonster({{ monster.id }})"
+                        id="slay-btn-{{ monster.id }}"
+                        {% if monster.id in slayed_monster_ids %}style="display:none;"{% else %}style="width:100%; background:#7f1d1d; color:#fca5a5; border:1px solid #ef4444; border-radius:8px; padding:10px; font-weight:700; font-size:0.85rem; text-transform:uppercase; cursor:pointer; letter-spacing:0.1em;"{% endif %}>
+                        ⚔️ Mark as Slayed
+                    </button>
+                    {% endif %}
                 </div>
 
             </div>
@@ -153,10 +173,25 @@
     </div>
 </div>
 
+<div id="slash-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:99998; pointer-events:none;">
+    <canvas id="slash-canvas" style="width:100%; height:100%;"></canvas>
+</div>
+
 <style>
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    @keyframes stampIn {
+        0% { transform: rotate(-15deg) scale(3); opacity: 0; }
+        60% { transform: rotate(-15deg) scale(0.9); opacity: 1; }
+        100% { transform: rotate(-15deg) scale(1); opacity: 1; }
+    }
 </style>
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const overlay = document.getElementById("loading-overlay");
@@ -178,5 +213,94 @@ window.addEventListener("pageshow", () => {
         el.innerHTML = el.textContent.replace(regex, '<mark style="background:#fbbf24;color:#0f172a;border-radius:3px;padding:0 2px;">$1</mark>');
     });
 })();
+
+function slayMonster(id) {
+    const card = document.getElementById(`card-${id}`);
+    const stamp = document.getElementById(`stamp-${id}`);
+    const slashOverlay = document.getElementById("slash-overlay");
+    const canvas = document.getElementById("slash-canvas");
+
+    const rect = card.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    slashOverlay.style.display = "block";
+
+    const slashes = [
+        { x1: cx - 120, y1: cy - 80, x2: cx + 120, y2: cy + 80 },
+        { x1: cx - 80,  y1: cy - 120, x2: cx + 80,  y2: cy + 120 },
+        { x1: cx - 130, y1: cy + 60,  x2: cx + 130, y2: cy - 60 },
+        { x1: cx - 60,  y1: cy + 130, x2: cx + 60,  y2: cy - 130 },
+    ];
+
+    const duration = 300;
+    const start = performance.now();
+
+    function animate(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        slashes.forEach((s, i) => {
+            const eased = Math.min(progress * 1.5 - i * 0.3, 1);
+            if (eased <= 0) return;
+
+            const ex = s.x1 + (s.x2 - s.x1) * eased;
+            const ey = s.y1 + (s.y2 - s.y1) * eased;
+
+            ctx.beginPath();
+            ctx.moveTo(s.x1, s.y1);
+            ctx.lineTo(ex, ey);
+            ctx.strokeStyle = `rgba(239, 68, 68, ${1 - progress * 0.5})`;
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+            ctx.shadowColor = "#ef4444";
+            ctx.shadowBlur = 20;
+            ctx.stroke();
+        });
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            setTimeout(() => {
+                slashOverlay.style.display = "none";
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                fetch(`/monsters/monster/${id}/slay/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                })
+                .then(res => res.json())
+                .then(() => {
+                    stamp.style.display = "flex";
+                    const slayBtn = document.getElementById(`slay-btn-${id}`);
+                    if (slayBtn) slayBtn.style.display = "none";
+                });
+            }, 100);
+        }
+    }
+
+    requestAnimationFrame(animate);
+}
+
+function undoSlay(id) {
+    fetch(`/monsters/monster/${id}/unslay/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.removed) {
+            const stamp = document.getElementById(`stamp-${id}`);
+            stamp.style.display = "none";
+            const slayBtn = document.getElementById(`slay-btn-${id}`);
+            if (slayBtn) slayBtn.style.cssText = "width:100%; background:#7f1d1d; color:#fca5a5; border:1px solid #ef4444; border-radius:8px; padding:10px; font-weight:700; font-size:0.85rem; text-transform:uppercase; cursor:pointer; letter-spacing:0.1em;";
+        }
+    });
+}
 </script>
 {% endblock %}

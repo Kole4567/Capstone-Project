@@ -80,6 +80,18 @@ def add_armor(request, pk):
         "message": "Armor added!" if created else "Armor already owned",
     })
 
+@login_required
+@require_POST
+def remove_armor(request, pk):
+    armor = get_object_or_404(Armor, pk=pk)
+    deleted, _ = ArmorInventory.objects.filter(
+        user=request.user,
+        armor=armor,
+    ).delete()
+    return JsonResponse({
+        "removed": deleted > 0,
+        "message": "Armor removed!" if deleted else "Armor not in inventory",
+    })
 
 @login_required
 @require_POST
@@ -94,6 +106,18 @@ def add_charm(request, pk):
         "message": "Charm added!" if created else "Charm already owned",
     })
 
+@login_required
+@require_POST
+def remove_charm(request, pk):
+    charm = get_object_or_404(Charm, pk=pk)
+    deleted, _ = CharmInventory.objects.filter(
+        user=request.user,
+        charm=charm,
+    ).delete()
+    return JsonResponse({
+        "removed": deleted > 0,
+        "message": "Charm removed!" if deleted else "Charm not in inventory",
+    })
 
 @login_required
 @require_POST
@@ -115,3 +139,23 @@ def add_decoration(request, pk):
         "quantity": obj.quantity,
         "message": "Decoration added",
     })
+
+@login_required
+@require_POST
+def remove_decoration(request, pk):
+    decoration = get_object_or_404(Decoration, pk=pk)
+    obj = DecorationInventory.objects.filter(
+        user=request.user,
+        decoration=decoration,
+    ).first()
+
+    if not obj:
+        return JsonResponse({"removed": False, "message": "Decoration not in inventory"})
+
+    if obj.quantity > 1:
+        obj.quantity -= 1
+        obj.save(update_fields=["quantity"])
+        return JsonResponse({"removed": True, "quantity": obj.quantity, "message": "Decoration quantity reduced"})
+    else:
+        obj.delete()
+        return JsonResponse({"removed": True, "quantity": 0, "message": "Decoration removed!"})
