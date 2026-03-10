@@ -48,9 +48,71 @@
                     Last Sync: {{ charm.updated_at|date:"Y-m-d" }}
                 </span>
             </div>
+
+            {% if user.is_authenticated %}
+            <div style="margin-top: 16px;">
+                {% if charm.id in owned_charm_ids %}
+                    <button
+                        onclick="removeFromInventory('charm', {{ charm.id }}, this)"
+                        style="width:100%; background:#ef4444; color:white; border:none; border-radius:8px; padding:10px; font-weight:700; font-size:0.85rem; text-transform:uppercase; cursor:pointer;">
+                        − Remove from Inventory
+                    </button>
+                {% else %}
+                    <button
+                        onclick="addToInventory('charm', {{ charm.id }}, this)"
+                        style="width:100%; background:#3b82f6; color:white; border:none; border-radius:8px; padding:10px; font-weight:700; font-size:0.85rem; text-transform:uppercase; cursor:pointer;">
+                        + Add to Inventory
+                    </button>
+                {% endif %}
+            </div>
+            {% endif %}
+
         </div>
         {% endfor %}
 
     </div> 
 </div>
+
+<script>
+function addToInventory(type, id, btn) {
+    fetch(`/inventory/add/${type}/${id}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.added) {
+            btn.textContent = '− Remove from Inventory';
+            btn.style.backgroundColor = '#ef4444';
+            btn.onclick = () => removeFromInventory(type, id, btn);
+        } else {
+            btn.textContent = data.message;
+        }
+    })
+    .catch(() => showError(btn));
+}
+
+function removeFromInventory(type, id, btn) {
+    fetch(`/inventory/remove/${type}/${id}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.removed) {
+            btn.textContent = '+ Add to Inventory';
+            btn.style.backgroundColor = '#3b82f6';
+            btn.onclick = () => addToInventory(type, id, btn);
+        } else {
+            btn.textContent = data.message;
+        }
+    })
+    .catch(() => showError(btn));
+}
+
+function showError(btn) {
+    btn.textContent = 'Error';
+    btn.style.backgroundColor = '#ef4444';
+}
+</script>
 {% endblock %}

@@ -37,7 +37,7 @@ python manage.py migrate
 
 🔐 Step 2 -  Get Google Ouath Running
 
-2.1 Start the serve
+2.1 Start the server
 
 We must first create a superuser. Run this command:
    python manage.py createsuperuser
