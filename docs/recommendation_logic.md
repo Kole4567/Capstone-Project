@@ -1,33 +1,39 @@
+---
+
+---
+
 # Build Recommendation Logic — Member 3
 
 ## Overview
 
 This module generates an optimal equipment build for a given monster by
-evaluating weapons, armor pieces, and charms using a scoring-based algorithm.
+evaluating **weapons, armor pieces, decorations, and charms** using a scoring-based algorithm.
 
 The system considers:
 
 * Monster weaknesses and elemental properties
 * Weapon performance
 * Armor defense, skills, and elemental resistances
+* Decoration slot compatibility and skill synergy
 * Charm skills and synergy with armor
 
 The algorithm returns the best build configuration for the monster.
 
 ---
 
-## Responsibilities
+# Responsibilities
 
 Member 3 is responsible for:
 
 * Designing and implementing build optimization algorithms
 * Calculating equipment scores based on monster attributes
 * Integrating Django ORM data into the algorithm
+* Implementing decoration slot optimization
 * Providing results that can be used by backend APIs
 
 ---
 
-## File Structure
+# File Structure
 
 ```
 MonsterHunterWorld/
@@ -37,11 +43,13 @@ MonsterHunterWorld/
 
 ---
 
-## Scoring System
+# Scoring System
 
 The recommendation is based on a weighted scoring system.
 
-### Weapon Score
+---
+
+# Weapon Score
 
 Weapon score is calculated using:
 
@@ -62,7 +70,7 @@ Element bonus is applied only if the weapon element matches one of the monster�
 
 ---
 
-### Armor Score
+# Armor Score
 
 Armor score considers three major factors:
 
@@ -88,7 +96,120 @@ The resistance type is automatically selected based on the monster’s primary e
 
 ---
 
-### Charm Score
+# Decoration System
+
+Decorations are now included in the build generation process.
+
+Decorations provide additional skills and are inserted into armor slots.
+
+Each armor piece may contain up to **three decoration slots**.
+
+```
+slot_1
+slot_2
+slot_3
+```
+
+If a slot value is **0**, it means the slot cannot accept decorations.
+
+Example:
+
+```
+slot_1 = 2
+slot_2 = 1
+slot_3 = 0
+```
+
+This armor can equip:
+
+* Level 2 decoration
+* Level 1 decoration
+* No third decoration
+
+---
+
+# Decoration Slot Rules
+
+A decoration can only be inserted if:
+
+```
+decoration_level == slot_level
+```
+
+Example:
+
+```
+Armor slot = 2
+Allowed decoration = Jewel 2
+```
+
+Invalid examples:
+
+```
+slot = 2
+Jewel 1 = NO
+Jewel 3 = NO
+```
+
+The level is extracted from the decoration name:
+
+```
+Attack Jewel 1
+Tenderizer Jewel 2
+Expert Jewel 3
+```
+
+---
+
+# Decoration Score
+
+Decorations are evaluated using their skill strength and synergy with armor skills.
+
+Formula:
+
+```
+Decoration Score =
+    (sum of skill max levels × 8)
+    + synergy_bonus
+```
+
+Synergy bonus rule:
+
+If the decoration provides a skill already present on the armor piece:
+
+```
++20 bonus
+```
+
+This encourages stacking related skills on the same armor part.
+
+---
+
+# Armor + Decoration Score
+
+The final armor evaluation includes both base armor score and decoration bonuses.
+
+Formula:
+
+```
+Total Armor Score =
+    Armor Score
+    + Decoration Scores
+```
+
+Steps:
+
+1. Determine available armor slots
+2. Find decorations with matching level
+3. Score all valid decorations
+4. Select the highest scoring decoration per slot
+5. Add decoration score to armor score
+
+This ensures the armor evaluation reflects its full potential when decorations are equipped.
+
+---
+
+# Charm Score
 
 Charm score includes:
 
@@ -110,26 +231,31 @@ This encourages builds with strong skill stacking.
 
 ---
 
-## Build Generation Algorithm
+# Build Generation Algorithm
 
 To reduce computational complexity, a lightweight optimization strategy is used.
 
-### Steps
+---
+
+# Steps
 
 1. Retrieve all equipment from the database using Django ORM
-2. Sort each equipment category by score
-3. Select the highest-scoring armor for each body part
-4. Determine armor skill set
-5. Select the best charm considering synergy
-6. Select the best weapon
-7. Return the final build
+2. Retrieve all decorations
+3. Calculate weapon scores
+4. Calculate armor scores including decoration optimization
+5. Sort each armor category by score
+6. Select the highest scoring armor for each body part
+7. Collect armor skills
+8. Select the best charm based on synergy
+9. Select the best weapon
+10. Return the final build
 
 This approach avoids generating all possible combinations,
 which significantly improves performance.
 
 ---
 
-## Armor Categories
+# Armor Categories
 
 The system currently supports:
 
@@ -141,9 +267,11 @@ The system currently supports:
 * Charm
 * Weapon
 
+Decorations are automatically attached to each armor piece during evaluation.
+
 ---
 
-## Output Format
+# Output Format
 
 The function returns a dictionary:
 
@@ -155,7 +283,14 @@ The function returns a dictionary:
     "legs": Armor,
     "gloves": Armor,
     "waist": Armor,
-    "charm": Charm
+    "charm": Charm,
+    "decorations": {
+        "head": [Decoration],
+        "chest": [Decoration],
+        "legs": [Decoration],
+        "gloves": [Decoration],
+        "waist": [Decoration]
+    }
 }
 ```
 
@@ -163,65 +298,81 @@ Each value is a Django model instance.
 
 ---
 
-## Main Function
+# Main Function
 
-```python
+```
 best_build_fast(monster)
 ```
 
 Input:
 
-* `monster` → Monster model instance
+```
+monster → Monster model instance
+```
 
 Output:
 
-* Dictionary containing the best build configuration
+```
+Dictionary containing the best build configuration
+```
 
 ---
 
-## Key Design Decisions
+# Key Design Decisions
 
-### Performance Optimization
+## Performance Optimization
 
-Instead of evaluating every possible combination
+Instead of evaluating every possible equipment combination
 (which grows exponentially), the algorithm:
 
 * Ranks equipment individually
+* Evaluates decorations per armor
 * Selects top candidates directly
 
-This reduces runtime dramatically while still producing high-quality builds.
-
-### Skill Synergy System
-
-Armor and charm skills are combined to reward:
-
-* Skill stacking
-* Consistent build themes
-
-This makes recommendations more realistic for gameplay.
+This significantly reduces runtime while maintaining build quality.
 
 ---
 
-## Future Improvements
+# Skill Synergy System
+
+The system encourages builds that stack related skills.
+
+Synergy bonuses apply between:
+
+* Armor + Decoration
+* Armor + Charm
+
+This improves realism and aligns with common Monster Hunter build strategies.
+
+---
+
+# Future Improvements
 
 Planned enhancements include:
 
-* Generating Top N builds instead of only one
-* Including decoration optimization
-* Considering monster behavior patterns
+* Generating **Top N builds instead of one**
+* Implementing **skill level cap validation**
+* Full **decoration optimization across the entire build**
 * Weapon type filtering
 * User preference weighting
+* Monster behavior based optimization
 
 ---
 
-## Integration with Backend API
+# Integration with Backend API
 
 This logic is designed to be called from a Django API endpoint.
 
 Example workflow:
 
 ```
-Frontend Request → Django View → Build Logic → JSON Response
+Frontend Request
+      ↓
+Django View
+      ↓
+Build Logic
+      ↓
+JSON Response
 ```
 
 ---
