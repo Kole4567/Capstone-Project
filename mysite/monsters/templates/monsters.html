@@ -4,84 +4,142 @@
 {% load static monsters_extra %}
 
 <div style="background-color: #0f172a; min-height: 100vh; padding: 40px 20px; color: white; font-family: sans-serif;">
-    
+
     <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: #a855f7; margin-bottom: 40px; text-transform: uppercase;">
         Monster Compendium
     </h1>
 
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto; align-items: stretch;">
-        
-        {% for monster in monsters %}
-        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); position: relative; overflow: hidden; display: flex; flex-direction: column;">
-            
-            {% if monster.is_elder_dragon %}
-            <div style="position: absolute; top: 10px; right: -30px; background: #f59e0b; color: #000; padding: 5px 40px; transform: rotate(45deg); font-size: 0.6rem; font-weight: 900; text-transform: uppercase; z-index: 10;">
-                Elder
+    <div style="max-width: 1200px; margin: 0 auto;">
+
+        <!-- Search & Filter Bar -->
+        <form method="get" style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px; margin-bottom:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+            <input type="hidden" name="page" value="1">
+            <div style="display:flex; flex-direction:column; gap:4px; flex:2; min-width:180px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Search</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Monster name…"
+                       style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem;">
             </div>
-            {% endif %}
-
-            <h2 style="font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #a855f7; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc;">
-                {{ monster.name }}
-            </h2>
-
-            <div style="height: 100px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
-                <img src="{% static monster.name|monster_icon %}" alt="{{ monster.name }}" style="max-width: 96px; max-height: 96px; object-fit: contain;">
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:140px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Species</label>
+                <select name="monster_type" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="">All Species</option>
+                    {% for mt in monster_types %}
+                    <option value="{{ mt }}" {% if monster_type == mt %}selected{% endif %}>{{ mt|capfirst }}</option>
+                    {% endfor %}
+                </select>
             </div>
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:130px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Elder Dragon</label>
+                <select name="elder" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="">All</option>
+                    <option value="yes" {% if elder_filter == 'yes' %}selected{% endif %}>Elder Dragons Only</option>
+                    <option value="no" {% if elder_filter == 'no' %}selected{% endif %}>Non-Elder Only</option>
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; min-width:100px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Per Page</label>
+                <select name="page_size" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
+                    <option value="15" {% if page_size == 15 %}selected{% endif %}>15</option>
+                    <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+                <button type="submit" style="background:#a855f7; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer;">Search</button>
+                <a href="?" style="background:#334155; color:white; border-radius:8px; padding:9px 14px; font-weight:700; text-decoration:none;">Reset</a>
+            </div>
+        </form>
 
-            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px; font-size: 0.95rem;">
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Species</span>
-                    <span style="font-weight: 600;">{{ monster.monster_type|capfirst }}</span>
+        <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:14px;">
+            <span style="color:#a855f7; font-weight:700;">{{ page_obj.paginator.count }}</span>
+            monster{{ page_obj.paginator.count|pluralize }}{% if q or monster_type or elder_filter %} found{% endif %}
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; align-items: stretch;">
+            {% for monster in monsters %}
+            <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); position: relative; overflow: hidden; display: flex; flex-direction: column;">
+
+                {% if monster.is_elder_dragon %}
+                <div style="position: absolute; top: 10px; right: -30px; background: #f59e0b; color: #000; padding: 5px 40px; transform: rotate(45deg); font-size: 0.6rem; font-weight: 900; text-transform: uppercase; z-index: 10;">
+                    Elder
                 </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Elements</span>
-                    <span style="font-weight: 600; color: #60a5fa;">{{ monster.primary_element|default:"None"|capfirst }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Ailments</span>
-                    <span style="font-weight: 600; color: #f472b6;">{{ monster.primary_ailment|default:"None"|capfirst }}</span>
+                {% endif %}
+
+                <h2 class="item-name" style="font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #a855f7; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc;">
+                    {{ monster.name }}
+                </h2>
+
+                <div style="height: 100px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+                    <img src="{% static monster.name|monster_icon %}" alt="{{ monster.name }}" style="max-width: 96px; max-height: 96px; object-fit: contain;">
                 </div>
 
-                <div style="margin-top: 15px; padding: 12px; background-color: #0f172a; border-radius: 8px; border-left: 4px solid #a855f7;">
-                    <p style="text-align: center; font-size: 0.7rem; font-weight: bold; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase;">Weaknesses</p>
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                        {% for weakness in monster.weaknesses.all %}
-                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                            <span>{{ weakness.name|capfirst }}</span>
-                            <span style="color: #f59e0b;">
-                                {% if weakness.stars == 3 %}⭐⭐⭐{% elif weakness.stars == 2 %}⭐⭐{% else %}⭐{% endif %}
-                            </span>
+                <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px; font-size: 0.95rem;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Species</span>
+                        <span style="font-weight: 600;">{{ monster.monster_type|capfirst }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Elements</span>
+                        <span style="font-weight: 600; color: #60a5fa;">{{ monster.primary_element|default:"None"|capfirst }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Ailments</span>
+                        <span style="font-weight: 600; color: #f472b6;">{{ monster.primary_ailment|default:"None"|capfirst }}</span>
+                    </div>
+
+                    <div style="margin-top: 15px; padding: 12px; background-color: #0f172a; border-radius: 8px; border-left: 4px solid #a855f7;">
+                        <p style="text-align: center; font-size: 0.7rem; font-weight: bold; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase;">Weaknesses</p>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            {% for weakness in monster.weaknesses.all %}
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                                <span>{{ weakness.name|capfirst }}</span>
+                                <span style="color: #f59e0b;">
+                                    {% if weakness.stars == 3 %}⭐⭐⭐{% elif weakness.stars == 2 %}⭐⭐{% else %}⭐{% endif %}
+                                </span>
+                            </div>
+                            {% empty %}
+                            <p style="text-align: center; color: #475569; font-size: 0.8rem;">Data classified</p>
+                            {% endfor %}
                         </div>
-                        {% empty %}
-                        <p style="text-align: center; color: #475569; font-size: 0.8rem;">Data classified</p>
-                        {% endfor %}
                     </div>
                 </div>
+
+                <div style="margin-top: 30px; display: flex; flex-direction: column; align-items: center;">
+                    <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #94a3b8; margin-bottom: 10px;">
+                        Prepare for the Hunt
+                    </p>
+                    <a href="{% url 'monster_build' monster.id %}"
+                        class="build-link btn btn-primary w-full text-white flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Generate Best Build
+                    </a>
+                </div>
+
             </div>
-
-            <div style="margin-top: 30px; display: flex; flex-direction: column; align-items: center;">
-                <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: #94a3b8; margin-bottom: 10px;">
-                    Prepare for the Hunt
-                </p>
-                <a href="{% url 'monster_build' monster.id %}" 
-                    class="build-link btn btn-primary w-full text-white flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Generate Best Build
-                </a>
+            {% empty %}
+            <div style="grid-column: span 3; text-align: center; padding: 50px; color: #94a3b8;">
+                No monsters match your search.
             </div>
-
+            {% endfor %}
         </div>
-        {% empty %}
-        <div style="grid-column: span 3; text-align: center; padding: 50px; color: #94a3b8;">
-            No monsters recorded in the field guide.
-        </div>
-        {% endfor %}
 
-    </div> 
+        {% if page_obj %}
+        <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-top:28px; flex-wrap:wrap;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">First</a>
+                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Prev</a>
+            {% endif %}
+            <span style="color:#94a3b8; font-weight:700;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Last</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
 </div>
-
 
 <div id="loading-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:99999; align-items:center; justify-content:center; background-color:rgba(2,6,23,0.8); backdrop-filter:blur(12px);">
     <div style="text-align:center;">
@@ -96,38 +154,29 @@
 </div>
 
 <style>
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 </style>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const overlay = document.getElementById("loading-overlay");
-    const buildButtons = document.querySelectorAll(".build-link");
-
-    buildButtons.forEach(button => {
+    document.querySelectorAll(".build-link").forEach(button => {
         button.addEventListener("click", () => {
             overlay.style.display = "flex";
-            overlay.style.position = "fixed";
-            overlay.style.top = "0";
-            overlay.style.left = "0";
-            overlay.style.width = "100%";
-            overlay.style.height = "100%";
-            overlay.style.zIndex = "99999";
-            overlay.style.backgroundColor = "rgba(2, 6, 23, 0.8)";
-            overlay.style.backdropFilter = "blur(12px)";
-            overlay.style.alignItems = "center";
-            overlay.style.justifyContent = "center";
         });
     });
 });
-
 window.addEventListener("pageshow", () => {
     document.getElementById("loading-overlay").style.display = "none";
 });
+
+(function() {
+    const q = "{{ q|escapejs }}";
+    if (!q) return;
+    const regex = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    document.querySelectorAll('.item-name').forEach(el => {
+        el.innerHTML = el.textContent.replace(regex, '<mark style="background:#fbbf24;color:#0f172a;border-radius:3px;padding:0 2px;">$1</mark>');
+    });
+})();
 </script>
 {% endblock %}

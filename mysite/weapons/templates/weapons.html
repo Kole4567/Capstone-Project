@@ -9,89 +9,165 @@
         Weapon Compendium
     </h1>
 
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto;">
-        
-        {% for weapon in weapons %}
-        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-            
-            <h2 style="font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc;">
-                {{ weapon.name }}
-            </h2>
+    <div style="max-width: 1200px; margin: 0 auto;">
 
-            <img 
-                src="{% static weapon.weapon_type|weapon_icon %}" 
-                alt="{{ weapon.name }}" 
-                style="width:96px; height:96px; object-fit:contain; margin:0 auto 12px; display:block; image-rendering: pixelated;"
-            >
-
-            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem;">
-                
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Type</span>
-                    <span style="font-weight: 600;">{{ weapon.weapon_type|capfirst }}</span>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Attack</span>
-                    <span style="font-weight: 600; color: #ef4444;">{{ weapon.attack_display }}</span>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Rarity</span>
-                    <span style="font-weight: 600; color: #f59e0b;">{{ weapon.rarity }}</span>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element</span>
-                    <span style="font-weight: 600;">{% if weapon.element %}{{ weapon.element }}{% else %}None{% endif %}</span>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element Damage</span>
-                    <span style="font-weight: 600;">{{ weapon.element_damage|default:0 }}</span>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Affinity</span>
-                    <span style="font-weight: 600; color: #38bdf8;">{{ weapon.affinity }}%</span>
-                </div>
-
-                {% if weapon.elderseal %}
-                <div style="display: flex; justify-content: space-between; padding-top: 8px;">
-                    <span style="color: #c084fc; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Elderseal</span>
-                    <span style="font-weight: 600; color: #c084fc;">{{ weapon.elderseal|capfirst }}</span>
-                </div>
-                {% endif %}
-
-               {% if user.is_authenticated %}
-                    {% if weapon.id in owned_weapon_ids %}
-                        <button
-                            onclick="removeFromInventory('weapon', {{ weapon.id }}, this)"
-                            style="width:100%; background:#ef4444;">
-                            − Remove from Inventory
-                        </button>
-                    {% else %}
-                        <button
-                            onclick="addToInventory('weapon', {{ weapon.id }}, this)"
-                            style="width:100%; background:#3b82f6;">
-                            + Add to Inventory
-                        </button>
-                    {% endif %}
-                {% endif %}
+        <!-- Search & Filter Bar -->
+        <form method="get" style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px; margin-bottom:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+            <input type="hidden" name="page" value="1">
+            <div style="display:flex; flex-direction:column; gap:4px; flex:2; min-width:160px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Search</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Weapon name…"
+                       style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem;">
             </div>
-        </div>
-        {% endfor %}
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:130px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Type</label>
+                <select name="weapon_type" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="">All Types</option>
+                    {% for wt in weapon_types %}
+                    <option value="{{ wt }}" {% if weapon_type == wt %}selected{% endif %}>{{ wt|capfirst }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:130px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Element</label>
+                <select name="element" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="">All Elements</option>
+                    <option value="none" {% if element_filter == 'none' %}selected{% endif %}>None</option>
+                    {% for el in elements %}
+                    <option value="{{ el }}" {% if element_filter == el %}selected{% endif %}>{{ el|capfirst }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:110px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Rarity</label>
+                <select name="rarity" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="">All Rarities</option>
+                    {% for r in rarities %}
+                    <option value="{{ r }}" {% if rarity_filter == r|stringformat:"s" %}selected{% endif %}>R{{ r }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; min-width:100px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Per Page</label>
+                <select name="page_size" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
+                    <option value="15" {% if page_size == 15 %}selected{% endif %}>15</option>
+                    <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+                <button type="submit" style="background:#3b82f6; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer;">Search</button>
+                <a href="?" style="background:#334155; color:white; border-radius:8px; padding:9px 14px; font-weight:700; text-decoration:none;">Reset</a>
+            </div>
+        </form>
 
-    </div> 
+        <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:14px;">
+            <span style="color:#60a5fa; font-weight:700;">{{ page_obj.paginator.count }}</span>
+            weapon{{ page_obj.paginator.count|pluralize }}{% if q or weapon_type or element_filter or rarity_filter %} found{% endif %}
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px;">
+            {% for weapon in weapons %}
+            <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
+
+                <h2 class="item-name" style="font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc;">
+                    {{ weapon.name }}
+                </h2>
+
+                <img
+                    src="{% static weapon.weapon_type|weapon_icon %}"
+                    alt="{{ weapon.name }}"
+                    style="width:96px; height:96px; object-fit:contain; margin:0 auto 12px; display:block; image-rendering: pixelated;"
+                >
+
+                <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem;">
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Type</span>
+                        <span style="font-weight: 600;">{{ weapon.weapon_type|capfirst }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Attack</span>
+                        <span style="font-weight: 600; color: #ef4444;">{{ weapon.attack_display }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Rarity</span>
+                        <span style="font-weight: 600; color: #f59e0b;">{{ weapon.rarity }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element</span>
+                        <span style="font-weight: 600;">{% if weapon.element %}{{ weapon.element }}{% else %}None{% endif %}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element Damage</span>
+                        <span style="font-weight: 600;">{{ weapon.element_damage|default:0 }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Affinity</span>
+                        <span style="font-weight: 600; color: #38bdf8;">{{ weapon.affinity }}%</span>
+                    </div>
+
+                    {% if weapon.elderseal %}
+                    <div style="display: flex; justify-content: space-between; padding-top: 8px;">
+                        <span style="color: #c084fc; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Elderseal</span>
+                        <span style="font-weight: 600; color: #c084fc;">{{ weapon.elderseal|capfirst }}</span>
+                    </div>
+                    {% endif %}
+
+                    {% if user.is_authenticated %}
+                        {% if weapon.id in owned_weapon_ids %}
+                            <button
+                                onclick="removeFromInventory('weapon', {{ weapon.id }}, this)"
+                                style="width:100%; background:#ef4444; border:none; color:white; padding:10px 12px; border-radius:10px; font-weight:700; cursor:pointer;">
+                                − Remove from Inventory
+                            </button>
+                        {% else %}
+                            <button
+                                onclick="addToInventory('weapon', {{ weapon.id }}, this)"
+                                style="width:100%; background:#3b82f6; border:none; color:white; padding:10px 12px; border-radius:10px; font-weight:700; cursor:pointer;">
+                                + Add to Inventory
+                            </button>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div style="grid-column:span 3; text-align:center; padding:50px; color:#94a3b8;">No weapons match your search.</div>
+            {% endfor %}
+        </div>
+
+        {% if page_obj %}
+        <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-top:28px; flex-wrap:wrap;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1&{{ filter_qs }}"
+                   style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">First</a>
+                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}"
+                   style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Prev</a>
+            {% endif %}
+
+            <span style="color:#94a3b8; font-weight:700;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}"
+                   style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}"
+                   style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Last</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
 </div>
 
 <script>
 function addToInventory(type, id, btn) {
     fetch(`/inventory/add/${type}/${id}/`, {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-        }
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
     })
     .then(res => res.json())
     .then(data => {
@@ -109,9 +185,7 @@ function addToInventory(type, id, btn) {
 function removeFromInventory(type, id, btn) {
     fetch(`/inventory/remove/${type}/${id}/`, {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-        }
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
     })
     .then(res => res.json())
     .then(data => {
@@ -130,5 +204,14 @@ function showError(btn) {
     btn.textContent = 'Error';
     btn.style.backgroundColor = '#ef4444';
 }
+
+(function() {
+    const q = "{{ q|escapejs }}";
+    if (!q) return;
+    const regex = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    document.querySelectorAll('.item-name').forEach(el => {
+        el.innerHTML = el.textContent.replace(regex, '<mark style="background:#fbbf24;color:#0f172a;border-radius:3px;padding:0 2px;">$1</mark>');
+    });
+})();
 </script>
 {% endblock %}

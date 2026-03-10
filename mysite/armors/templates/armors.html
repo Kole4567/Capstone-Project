@@ -5,76 +5,157 @@
         Armor Compendium
     </h1>
 
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto;">
-        
-        {% for piece in armors %}
-        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; justify-content: space-between;">
-            
-            <div>
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="font-size: 1.4rem; font-weight: bold; margin: 0; color: #f8fafc;">{{ piece.name }}</h2>
-                    <p style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; margin-top: 4px;">{{ piece.armor_set_name }} ({{ piece.armor_set_rank|upper }})</p>
-                    <div style="height: 2px; background: #10b981; width: 60%; margin: 10px auto 0;"></div>
-                </div>
+    <div style="max-width: 1200px; margin: 0 auto;">
 
-                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem;">
-                    
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #94a3b8; font-weight: bold; font-size: 0.7rem;">TYPE / RARITY</span>
-                        <span style="font-weight: 600;">{{ piece.armor_type|capfirst }} / <span style="color: #f59e0b;">R{{ piece.rarity }}</span></span>
+        <!-- Search & Filter Bar -->
+        <form method="get" style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px; margin-bottom:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+            <input type="hidden" name="page" value="1">
+            <div style="display:flex; flex-direction:column; gap:4px; flex:2; min-width:160px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Search</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Armor name…"
+                       style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Type</label>
+                <select name="armor_type" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="">All Types</option>
+                    {% for at in armor_types %}
+                    <option value="{{ at }}" {% if armor_type == at %}selected{% endif %}>{{ at|capfirst }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:110px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Rarity</label>
+                <select name="rarity" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="">All Rarities</option>
+                    {% for r in rarities %}
+                    <option value="{{ r }}" {% if rarity_filter == r|stringformat:"s" %}selected{% endif %}>R{{ r }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:110px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Rank</label>
+                <select name="rank" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="">All Ranks</option>
+                    {% for rank in ranks %}
+                    <option value="{{ rank }}" {% if rank_filter == rank %}selected{% endif %}>{{ rank|upper }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; min-width:100px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Per Page</label>
+                <select name="page_size" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
+                    <option value="15" {% if page_size == 15 %}selected{% endif %}>15</option>
+                    <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+                <button type="submit" style="background:#10b981; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer;">Search</button>
+                <a href="?" style="background:#334155; color:white; border-radius:8px; padding:9px 14px; font-weight:700; text-decoration:none;">Reset</a>
+            </div>
+        </form>
+
+        <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:14px;">
+            <span style="color:#10b981; font-weight:700;">{{ page_obj.paginator.count }}</span>
+            armor piece{{ page_obj.paginator.count|pluralize }}{% if q or armor_type or rarity_filter or rank_filter %} found{% endif %}
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px;">
+            {% for piece in armors %}
+            <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; justify-content: space-between;">
+
+                <div>
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h2 class="item-name" style="font-size: 1.4rem; font-weight: bold; margin: 0; color: #f8fafc;">{{ piece.name }}</h2>
+                        <p style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; margin-top: 4px;">{{ piece.armor_set_name }} ({{ piece.armor_set_rank|upper }})</p>
+                        <div style="height: 2px; background: #10b981; width: 60%; margin: 10px auto 0;"></div>
                     </div>
 
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #94a3b8; font-weight: bold; font-size: 0.7rem;">DEFENSE (BASE/MAX)</span>
-                        <span style="font-weight: 600; color: #10b981;">{{ piece.defense_base }} / {{ piece.defense_max }}</span>
-                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem;">
 
-                    <div style="display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 5px 8px; border-radius: 6px; margin-top: 5px;">
-                        <span style="color: #94a3b8; font-weight: bold; font-size: 0.7rem;">SLOTS</span>
-                        <div style="display: flex; gap: 4px;">
-                            {% if piece.slot_1 > 0 %}<span style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">①</span>{% endif %}
-                            {% if piece.slot_2 > 0 %}<span style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">②</span>{% endif %}
-                            {% if piece.slot_3 > 0 %}<span style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">③</span>{% endif %}
-                            {% if piece.slot_1 == 0 and piece.slot_2 == 0 and piece.slot_3 == 0 %}
-                            <span style="color: #475569; font-size: 0.7rem;">None</span>
-                            {% endif %}
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #94a3b8; font-weight: bold; font-size: 0.7rem;">TYPE / RARITY</span>
+                            <span style="font-weight: 600;">{{ piece.armor_type|capfirst }} / <span style="color: #f59e0b;">R{{ piece.rarity }}</span></span>
                         </div>
-                    </div>
 
-                    <div style="margin-top: 10px;">
-                        <p style="color: #94a3b8; font-weight: bold; font-size: 0.7rem; margin-bottom: 6px; text-transform: uppercase;">Armor Skills</p>
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            {% for armor_skill in piece.armor_skills.all %}
-                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 4px;">
-                                <span style="color: #34d399;">{{ armor_skill.skill.name }}</span>
-                                <span style="font-weight: bold;">Lv {{ armor_skill.level }}</span>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #94a3b8; font-weight: bold; font-size: 0.7rem;">DEFENSE (BASE/MAX)</span>
+                            <span style="font-weight: 600; color: #10b981;">{{ piece.defense_base }} / {{ piece.defense_max }}</span>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 5px 8px; border-radius: 6px; margin-top: 5px;">
+                            <span style="color: #94a3b8; font-weight: bold; font-size: 0.7rem;">SLOTS</span>
+                            <div style="display: flex; gap: 4px;">
+                                {% if piece.slot_1 > 0 %}<span style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">①</span>{% endif %}
+                                {% if piece.slot_2 > 0 %}<span style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">②</span>{% endif %}
+                                {% if piece.slot_3 > 0 %}<span style="background: #334155; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem;">③</span>{% endif %}
+                                {% if piece.slot_1 == 0 and piece.slot_2 == 0 and piece.slot_3 == 0 %}
+                                <span style="color: #475569; font-size: 0.7rem;">None</span>
+                                {% endif %}
                             </div>
-                            {% empty %}
-                            <span style="color: #475569; font-style: italic; font-size: 0.8rem;">No innate skills</span>
-                            {% endfor %}
+                        </div>
+
+                        <div style="margin-top: 10px;">
+                            <p style="color: #94a3b8; font-weight: bold; font-size: 0.7rem; margin-bottom: 6px; text-transform: uppercase;">Armor Skills</p>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                {% for armor_skill in piece.armor_skills.all %}
+                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 4px;">
+                                    <span style="color: #34d399;">{{ armor_skill.skill.name }}</span>
+                                    <span style="font-weight: bold;">Lv {{ armor_skill.level }}</span>
+                                </div>
+                                {% empty %}
+                                <span style="color: #475569; font-style: italic; font-size: 0.8rem;">No innate skills</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 10px; display: flex; justify-content: space-around; background: #0f172a; border-radius: 8px; padding: 8px; border: 1px solid #334155;">
+                            <div style="text-align: center;"><p style="color: #ef4444; margin:0; font-size: 0.7rem;">Fire</p><p style="margin:0; font-weight: bold;">{{ piece.res_fire }}</p></div>
+                            <div style="text-align: center;"><p style="color: #3b82f6; margin:0; font-size: 0.7rem;">Wat</p><p style="margin:0; font-weight: bold;">{{ piece.res_water }}</p></div>
+                            <div style="text-align: center;"><p style="color: #fbbf24; margin:0; font-size: 0.7rem;">Thu</p><p style="margin:0; font-weight: bold;">{{ piece.res_thunder }}</p></div>
+                            <div style="text-align: center;"><p style="color: #60a5fa; margin:0; font-size: 0.7rem;">Ice</p><p style="margin:0; font-weight: bold;">{{ piece.res_ice }}</p></div>
+                            <div style="text-align: center;"><p style="color: #a855f7; margin:0; font-size: 0.7rem;">Dra</p><p style="margin:0; font-weight: bold;">{{ piece.res_dragon }}</p></div>
                         </div>
                     </div>
-
-                    <div style="margin-top: 10px; display: flex; justify-content: space-around; background: #0f172a; border-radius: 8px; padding: 8px; border: 1px solid #334155;">
-                        <div style="text-align: center;"><p style="color: #ef4444; margin:0; font-size: 0.7rem;">Fire</p><p style="margin:0; font-weight: bold;">{{ piece.res_fire }}</p></div>
-                        <div style="text-align: center;"><p style="color: #3b82f6; margin:0; font-size: 0.7rem;">Wat</p><p style="margin:0; font-weight: bold;">{{ piece.res_water }}</p></div>
-                        <div style="text-align: center;"><p style="color: #fbbf24; margin:0; font-size: 0.7rem;">Thu</p><p style="margin:0; font-weight: bold;">{{ piece.res_thunder }}</p></div>
-                        <div style="text-align: center;"><p style="color: #60a5fa; margin:0; font-size: 0.7rem;">Ice</p><p style="margin:0; font-weight: bold;">{{ piece.res_ice }}</p></div>
-                        <div style="text-align: center;"><p style="color: #a855f7; margin:0; font-size: 0.7rem;">Dra</p><p style="margin:0; font-weight: bold;">{{ piece.res_dragon }}</p></div>
-                    </div>
                 </div>
-            </div>
 
-            {% if piece.armor_set_bonus_external_id %}
-            <div style="margin-top: 20px; border-top: 1px solid #334155; padding-top: 12px; text-align: center;">
-                <span style="background: #064e3b; color: #6ee7b7; font-size: 0.65rem; font-weight: 800; padding: 3px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 1px;">
-                    Set Bonus Available
-                </span>
+                {% if piece.armor_set_bonus_external_id %}
+                <div style="margin-top: 20px; border-top: 1px solid #334155; padding-top: 12px; text-align: center;">
+                    <span style="background: #064e3b; color: #6ee7b7; font-size: 0.65rem; font-weight: 800; padding: 3px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 1px;">
+                        Set Bonus Available
+                    </span>
+                </div>
+                {% endif %}
             </div>
+            {% empty %}
+            <div style="grid-column:span 3; text-align:center; padding:50px; color:#94a3b8;">No armor pieces match your search.</div>
+            {% endfor %}
+        </div>
+
+        {% if page_obj %}
+        <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-top:28px; flex-wrap:wrap;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">First</a>
+                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Prev</a>
+            {% endif %}
+            <span style="color:#94a3b8; font-weight:700;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Last</a>
             {% endif %}
         </div>
-        {% endfor %}
-
-    </div> 
+        {% endif %}
+    </div>
 </div>
+<script>
+(function() {
+    const q = "{{ q|escapejs }}";
+    if (!q) return;
+    const regex = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    document.querySelectorAll('.item-name').forEach(el => {
+        el.innerHTML = el.textContent.replace(regex, '<mark style="background:#fbbf24;color:#0f172a;border-radius:3px;padding:0 2px;">$1</mark>');
+    });
+})();
+</script>
 {% endblock %}

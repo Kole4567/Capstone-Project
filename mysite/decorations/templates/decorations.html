@@ -5,54 +5,115 @@
         Decorations
     </h1>
 
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto;">
-        
-        {% for deco in decorations %}
-        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column;">
-            
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="font-size: 1.4rem; font-weight: bold; margin: 0; color: #f8fafc;">{{ deco.name }}</h2>
-                <div style="height: 2px; background: #3b82f6; width: 60%; margin: 10px auto 0;"></div>
-            </div>
+    <div style="max-width: 1200px; margin: 0 auto;">
 
-            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px;">
-                <li style="font-size: 1rem; color: #94a3b8;">
-                    <strong style="color: white;">Rarity:</strong> 
-                    <span style="color: #f59e0b; font-weight: bold;">R{{ deco.rarity }}</span>
-                </li>
-
-                <li>
-                    <p style="color: #94a3b8; font-weight: bold; font-size: 0.75rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
-                        Innate Skills
-                    </p>
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                        {% for deco_skill in deco.decoration_skills.all %}
-                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; background: rgba(59, 130, 246, 0.1); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #3b82f6;">
-                            <span style="color: #60a5fa; font-weight: 600;">{{ deco_skill.skill.name }}</span>
-                            <span style="font-weight: bold;">Lv {{ deco_skill.level }}</span>
-                        </div>
-                        {% empty %}
-                        <span style="color: #475569; font-style: italic; font-size: 0.8rem;">No skills identified</span>
-                        {% endfor %}
-                    </div>
-                </li>
-                <div style="margin-top: 15px; border-top: 1px solid #334155; padding-top: 12px;">
-                <p style="color: #94a3b8; font-weight: bold; font-size: 0.7rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">
-                    Compatible Slots
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">HEAD</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">CHEST</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">ARMS</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WAIST</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">LEGS</span>
-                    <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WEAPON</span>
-                </div>
+        <!-- Search & Filter Bar -->
+        <form method="get" style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px; margin-bottom:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+            <input type="hidden" name="page" value="1">
+            <div style="display:flex; flex-direction:column; gap:4px; flex:2; min-width:180px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Search</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Decoration name…"
+                       style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem;">
             </div>
-            </ul>
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Rarity</label>
+                <select name="rarity" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="">All Rarities</option>
+                    {% for r in rarities %}
+                    <option value="{{ r }}" {% if rarity_filter == r|stringformat:"s" %}selected{% endif %}>R{{ r }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; min-width:100px;">
+                <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Per Page</label>
+                <select name="page_size" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px;">
+                    <option value="10" {% if page_size == 10 %}selected{% endif %}>10</option>
+                    <option value="15" {% if page_size == 15 %}selected{% endif %}>15</option>
+                    <option value="20" {% if page_size == 20 %}selected{% endif %}>20</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+                <button type="submit" style="background:#3b82f6; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer;">Search</button>
+                <a href="?" style="background:#334155; color:white; border-radius:8px; padding:9px 14px; font-weight:700; text-decoration:none;">Reset</a>
+            </div>
+        </form>
+
+        <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:14px;">
+            <span style="color:#60a5fa; font-weight:700;">{{ page_obj.paginator.count }}</span>
+            decoration{{ page_obj.paginator.count|pluralize }}{% if q or rarity_filter %} found{% endif %}
         </div>
-        {% endfor %}
 
-    </div> 
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px;">
+            {% for deco in decorations %}
+            <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column;">
+
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 class="item-name" style="font-size: 1.4rem; font-weight: bold; margin: 0; color: #f8fafc;">{{ deco.name }}</h2>
+                    <div style="height: 2px; background: #3b82f6; width: 60%; margin: 10px auto 0;"></div>
+                </div>
+
+                <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px;">
+                    <li style="font-size: 1rem; color: #94a3b8;">
+                        <strong style="color: white;">Rarity:</strong>
+                        <span style="color: #f59e0b; font-weight: bold;">R{{ deco.rarity }}</span>
+                    </li>
+
+                    <li>
+                        <p style="color: #94a3b8; font-weight: bold; font-size: 0.75rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                            Innate Skills
+                        </p>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            {% for deco_skill in deco.decoration_skills.all %}
+                            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; background: rgba(59, 130, 246, 0.1); padding: 6px 10px; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                                <span style="color: #60a5fa; font-weight: 600;">{{ deco_skill.skill.name }}</span>
+                                <span style="font-weight: bold;">Lv {{ deco_skill.level }}</span>
+                            </div>
+                            {% empty %}
+                            <span style="color: #475569; font-style: italic; font-size: 0.8rem;">No skills identified</span>
+                            {% endfor %}
+                        </div>
+                    </li>
+                    <div style="margin-top: 15px; border-top: 1px solid #334155; padding-top: 12px;">
+                        <p style="color: #94a3b8; font-weight: bold; font-size: 0.7rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;">Compatible Slots</p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">HEAD</span>
+                            <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">CHEST</span>
+                            <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">ARMS</span>
+                            <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WAIST</span>
+                            <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">LEGS</span>
+                            <span style="background: #0f172a; color: #f8fafc; font-size: 0.65rem; padding: 4px 8px; border-radius: 4px; border: 1px solid #334155;">WEAPON</span>
+                        </div>
+                    </div>
+                </ul>
+            </div>
+            {% empty %}
+            <div style="grid-column:span 3; text-align:center; padding:50px; color:#94a3b8;">No decorations match your search.</div>
+            {% endfor %}
+        </div>
+
+        {% if page_obj %}
+        <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-top:28px; flex-wrap:wrap;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">First</a>
+                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Prev</a>
+            {% endif %}
+            <span style="color:#94a3b8; font-weight:700;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}" style="padding:10px 12px; background:#1e293b; border:1px solid #334155; border-radius:10px; color:white; text-decoration:none;">Last</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
 </div>
+<script>
+(function() {
+    const q = "{{ q|escapejs }}";
+    if (!q) return;
+    const regex = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    document.querySelectorAll('.item-name').forEach(el => {
+        el.innerHTML = el.textContent.replace(regex, '<mark style="background:#fbbf24;color:#0f172a;border-radius:3px;padding:0 2px;">$1</mark>');
+    });
+})();
+</script>
 {% endblock %}
