@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="background-color:#0f172a; min-height:100vh; padding:40px 20px; color:white; font-family:sans-serif;">
+    <div style="max-width:1000px; margin:0 auto;">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
+            <h1 style="font-size:2.5rem; font-weight:900; font-style:italic; color:#a855f7; text-transform:uppercase; margin:0;">
+                My Builds
+            </h1>
+            <a href="{% url 'build_create' %}"
+               style="background:#a855f7; color:white; border-radius:10px; padding:12px 24px; font-weight:700; text-decoration:none; font-size:0.9rem;">
+                + Create Build
+            </a>
+        </div>
+
+        {% if builds %}
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            {% for build in builds %}
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+
+                <div style="flex:1; min-width:200px;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                        <h2 style="font-size:1.1rem; font-weight:800; color:#f8fafc; margin:0;">{{ build.title }}</h2>
+                        {% if not build.is_public %}
+                        <span style="background:#334155; color:#94a3b8; font-size:0.65rem; padding:2px 8px; border-radius:999px; font-weight:700;">PRIVATE</span>
+                        {% endif %}
+                    </div>
+                    <p style="color:#64748b; font-size:0.8rem; margin:0;">
+                        {{ build.created_at|date:"M d, Y" }} &nbsp;·&nbsp;
+                        ▲ {{ build.like_count }} &nbsp;·&nbsp;
+                        💬 {{ build.comment_count }}
+                    </p>
+                    {% if build.description %}
+                    <p style="color:#94a3b8; font-size:0.85rem; margin:8px 0 0; line-height:1.4;">{{ build.description|truncatechars:100 }}</p>
+                    {% endif %}
+                </div>
+
+                <div style="display:flex; gap:10px; flex-shrink:0;">
+                    <a href="{% url 'build_detail' build.pk %}"
+                       style="background:#334155; color:white; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:700; text-decoration:none;">
+                        View
+                    </a>
+                    <a href="{% url 'build_edit' build.pk %}"
+                       style="background:#1e40af; color:white; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:700; text-decoration:none;">
+                        Edit
+                    </a>
+                    <form method="post" action="{% url 'build_delete' build.pk %}" onsubmit="return confirm('Delete this build?')">
+                        {% csrf_token %}
+                        <button type="submit"
+                                style="background:#7f1d1d; color:#fca5a5; border:1px solid #ef4444; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:700; cursor:pointer;">
+                            Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:80px; color:#475569;">
+            <p style="font-size:1.2rem; margin-bottom:16px;">You haven't created any builds yet.</p>
+            <a href="{% url 'build_create' %}" style="color:#a855f7; font-weight:700;">Create your first build →</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

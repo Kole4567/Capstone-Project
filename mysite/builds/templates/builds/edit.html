@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="background-color:#0f172a; min-height:100vh; padding:40px 20px; color:white; font-family:sans-serif;">
+    <div style="max-width:800px; margin:0 auto;">
+
+        <h1 style="font-size:2.5rem; font-weight:900; font-style:italic; color:#a855f7; text-transform:uppercase; margin-bottom:40px;">
+            Edit Build
+        </h1>
+
+        <form method="post" style="display:flex; flex-direction:column; gap:24px;">
+            {% csrf_token %}
+
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:16px;">
+                <h2 style="color:#a855f7; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0;">Build Info</h2>
+                <div>
+                    <label style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; font-weight:700; display:block; margin-bottom:6px;">Title *</label>
+                    <input type="text" name="title" required value="{{ build.title }}"
+                           style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.95rem; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; font-weight:700; display:block; margin-bottom:6px;">Description</label>
+                    <textarea name="description" rows="3"
+                              style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.95rem; box-sizing:border-box; resize:vertical;">{{ build.description }}</textarea>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" name="is_public" id="is_public" {% if build.is_public %}checked{% endif %} style="width:16px; height:16px; accent-color:#a855f7;">
+                    <label for="is_public" style="color:#94a3b8; font-size:0.85rem;">Make this build public</label>
+                </div>
+            </div>
+
+            <div style="background:#1e293b; border:1px solid #3b82f6; border-radius:12px; padding:24px;">
+                <h2 style="color:#60a5fa; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0 0 16px;">⚔️ Weapon</h2>
+                <select name="weapon" style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.9rem;">
+                    <option value="">— None —</option>
+                    {% for w in weapons %}
+                    <option value="{{ w.pk }}" {% if build.weapon and build.weapon.pk == w.pk %}selected{% endif %}>{{ w.name }} ({{ w.weapon_type|capfirst }}, R{{ w.rarity }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="background:#1e293b; border:1px solid #10b981; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+                <h2 style="color:#34d399; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0;">🛡️ Armor</h2>
+                {% for slot, label, items in slot_data %}
+                <div>
+                    <label style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; font-weight:700; display:block; margin-bottom:6px;">{{ label }}</label>
+                    <select name="{{ slot }}" style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.9rem;">
+                        <option value="">— None —</option>
+                        {% for a in items %}
+                        <option value="{{ a.pk }}" {% if slot == 'head' and build.head and build.head.pk == a.pk %}selected{% elif slot == 'chest' and build.chest and build.chest.pk == a.pk %}selected{% elif slot == 'arms' and build.arms and build.arms.pk == a.pk %}selected{% elif slot == 'waist' and build.waist and build.waist.pk == a.pk %}selected{% elif slot == 'legs' and build.legs and build.legs.pk == a.pk %}selected{% endif %}>{{ a.name }} (R{{ a.rarity }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div style="background:#1e293b; border:1px solid #f472b6; border-radius:12px; padding:24px;">
+                <h2 style="color:#f472b6; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0 0 16px;">✨ Charm</h2>
+                <select name="charm" style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.9rem;">
+                    <option value="">— None —</option>
+                    {% for c in charms %}
+                    <option value="{{ c.pk }}" {% if build.charm and build.charm.pk == c.pk %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="background:#1e293b; border:1px solid #f59e0b; border-radius:12px; padding:24px;">
+                <h2 style="color:#fbbf24; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0 0 4px;">💎 Decorations</h2>
+                <p style="color:#64748b; font-size:0.75rem; margin:0 0 14px;">Hold Ctrl / Cmd to select multiple</p>
+                <select name="decorations" multiple style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.85rem; height:180px;">
+                    {% for d in decorations %}
+                    <option value="{{ d.pk }}" {% if d in build.decorations.all %}selected{% endif %}>{{ d.name }} (R{{ d.rarity }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display:flex; gap:12px;">
+                <button type="submit"
+                        style="flex:1; background:#a855f7; color:white; border:none; border-radius:10px; padding:14px; font-weight:700; font-size:1rem; cursor:pointer;">
+                    Save Changes
+                </button>
+                <a href="{% url 'build_detail' build.pk %}"
+                   style="background:#334155; color:white; border-radius:10px; padding:14px 24px; font-weight:700; text-decoration:none; font-size:1rem;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

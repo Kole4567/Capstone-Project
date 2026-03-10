@@ -17,6 +17,7 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import include, path
+from builds import views as builds_views
 
 # OpenAPI / Swagger
 from drf_spectacular.views import (
@@ -51,4 +52,6 @@ urlpatterns = [
     path('decorations/', include('decorations.urls')),
     path('accounts/', include('allauth.urls')),
     path('inventory/', include('inventory.urls')),
+    path('builds/', include('builds.urls')),
+    path('profile/<str:username>/', builds_views.user_profile, name='user_profile'),
 ]
