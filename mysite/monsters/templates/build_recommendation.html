@@ -35,26 +35,69 @@
             </ul>
         </div>
 
-        <!-- ARMOR CARD -->
-        <div style="position:relative; background:rgba(30,41,59,0.6); backdrop-filter:blur(24px); border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); padding:24px; border:1px solid #10b981;">
-            <span style="position:absolute; left:0; top:0; height:100%; width:4px; background:#10b981; border-radius:12px 0 0 12px;"></span>
-            <h2 style="font-size:1.1rem; font-weight:600; margin-bottom:16px; border-bottom:1px solid #334155; padding-bottom:8px; color:#34d399;">
-                🛡️ Armor Set Details
-            </h2>
-            <ul class="space-y-3 text-sm">
-                <li><strong>Head:</strong> {{ build.head.name }}</li>
-                <li><strong>Chest:</strong> {{ build.chest.name }}</li>
-                <li><strong>Arms:</strong> {{ build.gloves.name }}</li>
-                <li><strong>Waist:</strong> {{ build.waist.name }}</li>
-                <li><strong>Legs:</strong> {{ build.legs.name }}</li>
-            </ul>
-        </div>
+    <!-- ARMOR CARD -->
+    <div style="position:relative; background:rgba(30,41,59,0.6); backdrop-filter:blur(24px); border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); padding:24px; border:1px solid #10b981;">
+        <span style="position:absolute; left:0; top:0; height:100%; width:4px; background:#10b981; border-radius:12px 0 0 12px;"></span>
+
+        <h2 style="font-size:1.1rem; font-weight:600; margin-bottom:16px; border-bottom:1px solid #334155; padding-bottom:8px; color:#34d399;">
+            🛡️ Armor Set Details
+        </h2>
+
+        <ul class="space-y-3 text-sm">
+
+            <li>
+                <strong>Head:</strong> {{ build.head.name }}
+                <ul style="margin-left:20px; list-style-type:disc;">
+                    {% for dec in build.decorations.head %}
+                    <li> {{ dec.name }}</li>
+                    {% endfor %}
+                </ul>
+            </li>
+
+            <li>
+                <strong>Chest:</strong> {{ build.chest.name }}
+                <ul style="margin-left:20px; list-style-type:disc;">
+                    {% for dec in build.decorations.chest %}
+                    <li> {{ dec.name }}</li>
+                    {% endfor %}
+                </ul>
+            </li>
+
+            <li>
+                <strong>Arms:</strong> {{ build.gloves.name }}
+                <ul style="margin-left:20px; list-style-type:disc;">
+                    {% for dec in build.decorations.gloves %}
+                    <li> {{ dec.name }}</li>
+                    {% endfor %}
+                </ul>
+            </li>
+
+            <li>
+                <strong>Waist:</strong> {{ build.waist.name }}
+                <ul style="margin-left:20px; list-style-type:disc;">
+                    {% for dec in build.decorations.waist %}
+                    <li> {{ dec.name }}</li>
+                    {% endfor %}
+                </ul>
+            </li>
+
+            <li>
+                <strong>Legs:</strong> {{ build.legs.name }}
+                <ul style="margin-left:20px; list-style-type:disc;">
+                    {% for dec in build.decorations.legs %}
+                    <li> {{ dec.name }}</li>
+                    {% endfor %}
+                </ul>
+            </li>
+
+        </ul>
+    </div>
 
         <!-- CHARM CARD -->
         <div style="position:relative; background:rgba(30,41,59,0.6); backdrop-filter:blur(24px); border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); padding:24px; border:1px solid #f472b6;">
             <span style="position:absolute; left:0; top:0; height:100%; width:4px; background:#f472b6; border-radius:12px 0 0 12px;"></span>
             <h2 style="font-size:1.1rem; font-weight:600; margin-bottom:16px; border-bottom:1px solid #334155; padding-bottom:8px; color:#f9a8d4;">
-                ✨ Equipped Charm
+                ✨ Equipped Charmz
             </h2>
             <ul class="space-y-3 text-sm">
                 <li><strong>Charm:</strong> {{ build.charm.name }}</li>
