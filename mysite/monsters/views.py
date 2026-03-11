@@ -33,36 +33,30 @@ def monsters_index(request):
             SlayedMonster.objects.filter(user=request.user).values_list('monster_id', flat=True)
         )
 
-    try:
-        page_size = int(request.GET.get("page_size", 15))
-    except (TypeError, ValueError):
-        page_size = 15
-    if page_size not in (10, 15, 20):
-        page_size = 15
-
-    paginator = Paginator(monsters_qs, page_size)
+    paginator = Paginator(monsters_qs, 12)
     page_number = request.GET.get("page", 1)
     page_obj = paginator.get_page(page_number)
 
-    params = {'page_size': page_size}
-    if q:
-        params['q'] = q
-    if monster_type:
-        params['monster_type'] = monster_type
-    if elder_filter:
-        params['elder'] = elder_filter
+    params = {}
+    if q: params['q'] = q
+    if monster_type: params['monster_type'] = monster_type
+    if elder_filter: params['elder'] = elder_filter
     filter_qs = urlencode(params)
+
+    cur = page_obj.number
+    total = page_obj.paginator.num_pages
+    page_range = list(range(max(1, cur - 1), min(total, cur + 1) + 1))
 
     return render(request, 'monsters.html', {
         'monsters': page_obj.object_list,
         'page_obj': page_obj,
-        'page_size': page_size,
         'q': q,
         'monster_type': monster_type,
         'elder_filter': elder_filter,
         'monster_types': monster_types,
         'filter_qs': filter_qs,
         'slayed_monster_ids': slayed_monster_ids,
+        'page_range': page_range,
     })
 
 
@@ -72,6 +66,18 @@ def monster_detail(request, monster_id):
     return render(request, 'build_recommendation.html', {
         'monster': monster,
         'build': recommendation
+    })
+
+
+@login_required
+def my_hunts(request):
+    slayed = SlayedMonster.objects.filter(user=request.user).select_related('monster').order_by('monster__name')
+    total_count = Monster.objects.count()
+    slayed_count = slayed.count()
+    return render(request, 'my_hunts.html', {
+        'slayed': slayed,
+        'slayed_count': slayed_count,
+        'total_count': total_count,
     })
 
 

@@ -7,7 +7,7 @@
             Edit Build
         </h1>
 
-        <form method="post" style="display:flex; flex-direction:column; gap:24px;">
+        <form method="post" id="build-form" style="display:flex; flex-direction:column; gap:24px;">
             {% csrf_token %}
 
             <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:16px;">
@@ -28,49 +28,38 @@
                 </div>
             </div>
 
+            <!-- Weapon -->
             <div style="background:#1e293b; border:1px solid #3b82f6; border-radius:12px; padding:24px;">
                 <h2 style="color:#60a5fa; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0 0 16px;">⚔️ Weapon</h2>
-                <select name="weapon" style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.9rem;">
-                    <option value="">— None —</option>
-                    {% for w in weapons %}
-                    <option value="{{ w.pk }}" {% if build.weapon and build.weapon.pk == w.pk %}selected{% endif %}>{{ w.name }} ({{ w.weapon_type|capfirst }}, R{{ w.rarity }})</option>
-                    {% endfor %}
-                </select>
+                <input type="hidden" name="weapon" id="val-weapon">
+                <div id="search-weapon"></div>
             </div>
 
+            <!-- Armor -->
             <div style="background:#1e293b; border:1px solid #10b981; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:14px;">
                 <h2 style="color:#34d399; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0;">🛡️ Armor</h2>
                 {% for slot, label, items in slot_data %}
                 <div>
                     <label style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; font-weight:700; display:block; margin-bottom:6px;">{{ label }}</label>
-                    <select name="{{ slot }}" style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.9rem;">
-                        <option value="">— None —</option>
-                        {% for a in items %}
-                        <option value="{{ a.pk }}" {% if slot == 'head' and build.head and build.head.pk == a.pk %}selected{% elif slot == 'chest' and build.chest and build.chest.pk == a.pk %}selected{% elif slot == 'arms' and build.arms and build.arms.pk == a.pk %}selected{% elif slot == 'waist' and build.waist and build.waist.pk == a.pk %}selected{% elif slot == 'legs' and build.legs and build.legs.pk == a.pk %}selected{% endif %}>{{ a.name }} (R{{ a.rarity }})</option>
-                        {% endfor %}
-                    </select>
+                    <input type="hidden" name="{{ slot }}" id="val-{{ slot }}">
+                    <div id="search-{{ slot }}"></div>
                 </div>
                 {% endfor %}
             </div>
 
+            <!-- Charm -->
             <div style="background:#1e293b; border:1px solid #f472b6; border-radius:12px; padding:24px;">
                 <h2 style="color:#f472b6; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0 0 16px;">✨ Charm</h2>
-                <select name="charm" style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.9rem;">
-                    <option value="">— None —</option>
-                    {% for c in charms %}
-                    <option value="{{ c.pk }}" {% if build.charm and build.charm.pk == c.pk %}selected{% endif %}>{{ c.name }}</option>
-                    {% endfor %}
-                </select>
+                <input type="hidden" name="charm" id="val-charm">
+                <div id="search-charm"></div>
             </div>
 
+            <!-- Decorations -->
             <div style="background:#1e293b; border:1px solid #f59e0b; border-radius:12px; padding:24px;">
                 <h2 style="color:#fbbf24; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0 0 4px;">💎 Decorations</h2>
-                <p style="color:#64748b; font-size:0.75rem; margin:0 0 14px;">Hold Ctrl / Cmd to select multiple</p>
-                <select name="decorations" multiple style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.85rem; height:180px;">
-                    {% for d in decorations %}
-                    <option value="{{ d.pk }}" {% if d in build.decorations.all %}selected{% endif %}>{{ d.name }} (R{{ d.rarity }})</option>
-                    {% endfor %}
-                </select>
+                <p style="color:#64748b; font-size:0.75rem; margin:0 0 12px;">Search and add multiple</p>
+                <div id="deco-tags" style="display:flex; flex-wrap:wrap; gap:6px; min-height:28px; margin-bottom:10px;"></div>
+                <div id="search-decoration"></div>
             </div>
 
             <div style="display:flex; gap:12px;">
@@ -86,4 +75,172 @@
         </form>
     </div>
 </div>
+
+<script>
+const DATA = {
+    weapon: [{% for w in weapons %}{pk:{{w.pk}},name:"{{w.name|escapejs}}",sub:"{{w.weapon_type|capfirst|escapejs}}, R{{w.rarity}}, ATK {{w.attack_raw}}"},{% endfor %}],
+    {% for slot, label, items in slot_data %}"{{slot}}":[{% for a in items %}{pk:{{a.pk}},name:"{{a.name|escapejs}}",sub:"R{{a.rarity}}, DEF {{a.defense_base}}"},{% endfor %}],
+    {% endfor %}charm:[{% for c in charms %}{pk:{{c.pk}},name:"{{c.name|escapejs}}",sub:"{% if c.rarity %}R{{c.rarity}}{% endif %}"},{% endfor %}],
+    decoration:[{% for d in decorations %}{pk:{{d.pk}},name:"{{d.name|escapejs}}",sub:"R{{d.rarity}}"},{% endfor %}],
+};
+
+const ACCENT = {weapon:'#3b82f6',head:'#10b981',chest:'#10b981',arms:'#10b981',waist:'#10b981',legs:'#10b981',charm:'#f472b6'};
+const selectedDecos = {};
+
+function buildSearch(slot) {
+    const accent = ACCENT[slot] || '#a855f7';
+    const c = document.getElementById('search-' + slot);
+    c.innerHTML = `
+        <div style="position:relative;">
+            <div id="disp-${slot}" onclick="openSearch('${slot}')"
+                 style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; min-height:42px;">
+                <span id="disp-text-${slot}" style="color:#64748b; font-size:0.9rem;">— None —</span>
+                <span style="color:#475569; font-size:0.85rem; padding:2px 6px;" onmousedown="clearSlot('${slot}', event)">✕</span>
+            </div>
+            <div id="sbox-${slot}" style="display:none; position:relative; z-index:10; margin-top:4px;">
+                <input id="q-${slot}" type="text" placeholder="Search..." autocomplete="off"
+                       style="width:100%; background:#0f172a; color:white; border:1px solid ${accent}; border-radius:8px 8px 0 0; padding:10px 14px; font-size:0.9rem; box-sizing:border-box; outline:none;"
+                       oninput="filterItems('${slot}')">
+                <div id="res-${slot}" style="background:#111827; border:1px solid #334155; border-top:none; border-radius:0 0 8px 8px; max-height:220px; overflow-y:auto;"></div>
+            </div>
+        </div>`;
+    renderResults(slot, DATA[slot].slice(0, 15));
+    document.getElementById('q-' + slot).addEventListener('blur', () => {
+        setTimeout(() => { document.getElementById('sbox-' + slot).style.display = 'none'; }, 150);
+    });
+}
+
+function buildDecoSearch() {
+    const c = document.getElementById('search-decoration');
+    c.innerHTML = `
+        <input id="q-decoration" type="text" placeholder="Search decorations..." autocomplete="off"
+               style="width:100%; background:#0f172a; color:white; border:1px solid #f59e0b; border-radius:8px; padding:10px 14px; font-size:0.9rem; box-sizing:border-box; outline:none;"
+               oninput="filterDecos()">
+        <div id="res-decoration" style="display:none; background:#111827; border:1px solid #334155; border-top:none; border-radius:0 0 8px 8px; max-height:220px; overflow-y:auto;"></div>`;
+    document.getElementById('q-decoration').addEventListener('blur', () => {
+        setTimeout(() => { document.getElementById('res-decoration').style.display = 'none'; }, 150);
+    });
+}
+
+function openSearch(slot) {
+    document.getElementById('sbox-' + slot).style.display = 'block';
+    const q = document.getElementById('q-' + slot);
+    q.value = '';
+    q.focus();
+    renderResults(slot, DATA[slot].slice(0, 15));
+}
+
+function clearSlot(slot, event) {
+    event.preventDefault();
+    document.getElementById('val-' + slot).value = '';
+    const t = document.getElementById('disp-text-' + slot);
+    t.textContent = '— None —';
+    t.style.color = '#64748b';
+}
+
+function filterItems(slot) {
+    const q = document.getElementById('q-' + slot).value.toLowerCase().trim();
+    const results = q ? DATA[slot].filter(i => i.name.toLowerCase().includes(q)).slice(0, 30) : DATA[slot].slice(0, 15);
+    renderResults(slot, results);
+}
+
+function renderResults(slot, items) {
+    const div = document.getElementById('res-' + slot);
+    div.innerHTML = '';
+    if (!items.length) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding:10px 14px; color:#475569; font-size:0.85rem;';
+        empty.textContent = 'No results';
+        div.appendChild(empty);
+        return;
+    }
+    items.forEach(item => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:10px 14px; cursor:pointer; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center;';
+        row.innerHTML = `<span style="color:#f8fafc; font-size:0.9rem; font-weight:600;">${item.name}</span><span style="color:#64748b; font-size:0.75rem; margin-left:8px;">${item.sub}</span>`;
+        row.addEventListener('mouseenter', () => row.style.background = '#1e293b');
+        row.addEventListener('mouseleave', () => row.style.background = '');
+        row.addEventListener('mousedown', e => { e.preventDefault(); selectItem(slot, item.pk, item.name, item.sub); });
+        div.appendChild(row);
+    });
+}
+
+function selectItem(slot, pk, name, sub) {
+    document.getElementById('val-' + slot).value = pk;
+    const t = document.getElementById('disp-text-' + slot);
+    t.textContent = name + (sub ? '  ·  ' + sub : '');
+    t.style.color = '#f8fafc';
+    document.getElementById('sbox-' + slot).style.display = 'none';
+}
+
+function filterDecos() {
+    const q = document.getElementById('q-decoration').value.toLowerCase().trim();
+    const resDiv = document.getElementById('res-decoration');
+    if (!q) { resDiv.style.display = 'none'; return; }
+    const results = DATA.decoration.filter(d => d.name.toLowerCase().includes(q) && !selectedDecos[d.pk]).slice(0, 20);
+    resDiv.style.display = 'block';
+    resDiv.innerHTML = '';
+    if (!results.length) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding:10px 14px; color:#475569; font-size:0.85rem;';
+        empty.textContent = 'No results';
+        resDiv.appendChild(empty);
+        return;
+    }
+    results.forEach(d => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:10px 14px; cursor:pointer; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between;';
+        row.innerHTML = `<span style="color:#f8fafc; font-size:0.9rem;">${d.name}</span><span style="color:#64748b; font-size:0.75rem;">${d.sub}</span>`;
+        row.addEventListener('mouseenter', () => row.style.background = '#1e293b');
+        row.addEventListener('mouseleave', () => row.style.background = '');
+        row.addEventListener('mousedown', e => { e.preventDefault(); addDeco(d.pk, d.name); });
+        resDiv.appendChild(row);
+    });
+}
+
+function addDeco(pk, name) {
+    if (selectedDecos[pk]) return;
+    selectedDecos[pk] = name;
+    document.getElementById('q-decoration').value = '';
+    document.getElementById('res-decoration').style.display = 'none';
+    renderDecoTags();
+}
+
+function removeDeco(pk) {
+    delete selectedDecos[pk];
+    renderDecoTags();
+}
+
+function renderDecoTags() {
+    const tags = document.getElementById('deco-tags');
+    document.querySelectorAll('input[name="decorations"]').forEach(el => el.remove());
+    tags.innerHTML = Object.entries(selectedDecos).map(([pk, name]) => `
+        <div style="background:#451a03; border:1px solid #f59e0b; border-radius:6px; padding:4px 10px; display:flex; align-items:center; gap:8px;">
+            <span style="color:#fbbf24; font-size:0.8rem; font-weight:700;">${name}</span>
+            <span onclick="removeDeco(${pk})" style="color:#92400e; cursor:pointer; font-weight:900; font-size:1rem; line-height:1;">✕</span>
+        </div>`).join('');
+    const form = document.getElementById('build-form');
+    Object.keys(selectedDecos).forEach(pk => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'decorations'; inp.value = pk;
+        form.appendChild(inp);
+    });
+}
+
+// Initialize search boxes
+buildSearch('weapon');
+{% for slot, label, items in slot_data %}buildSearch('{{ slot }}');
+{% endfor %}buildSearch('charm');
+buildDecoSearch();
+
+// Pre-select existing values
+{% if build.weapon %}selectItem('weapon', {{build.weapon.pk}}, "{{build.weapon.name|escapejs}}", "{{build.weapon.weapon_type|capfirst|escapejs}}, R{{build.weapon.rarity}}, ATK {{build.weapon.attack_raw}}");{% endif %}
+{% if build.head %}selectItem('head', {{build.head.pk}}, "{{build.head.name|escapejs}}", "R{{build.head.rarity}}, DEF {{build.head.defense_base}}");{% endif %}
+{% if build.chest %}selectItem('chest', {{build.chest.pk}}, "{{build.chest.name|escapejs}}", "R{{build.chest.rarity}}, DEF {{build.chest.defense_base}}");{% endif %}
+{% if build.arms %}selectItem('arms', {{build.arms.pk}}, "{{build.arms.name|escapejs}}", "R{{build.arms.rarity}}, DEF {{build.arms.defense_base}}");{% endif %}
+{% if build.waist %}selectItem('waist', {{build.waist.pk}}, "{{build.waist.name|escapejs}}", "R{{build.waist.rarity}}, DEF {{build.waist.defense_base}}");{% endif %}
+{% if build.legs %}selectItem('legs', {{build.legs.pk}}, "{{build.legs.name|escapejs}}", "R{{build.legs.rarity}}, DEF {{build.legs.defense_base}}");{% endif %}
+{% if build.charm %}selectItem('charm', {{build.charm.pk}}, "{{build.charm.name|escapejs}}", "{% if build.charm.rarity %}R{{build.charm.rarity}}{% endif %}");{% endif %}
+{% for d in build.decorations.all %}addDeco({{d.pk}}, "{{d.name|escapejs}}");{% endfor %}
+</script>
 {% endblock %}

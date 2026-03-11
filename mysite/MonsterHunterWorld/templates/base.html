@@ -3,14 +3,27 @@
 <html lang="en" data-theme="dark">
 <head>
     <link rel="stylesheet" href="{% static 'css/output.css' %}">
+    <style>
+        .nav-desktop { display: flex; }
+        .nav-hamburger { display: none; }
+        #mobile-menu { display: none; }
+
+        @media (max-width: 768px) {
+            .nav-desktop { display: none !important; }
+            .nav-hamburger { display: flex !important; }
+        }
+    </style>
 </head>
 <body>
     <div class="navbar bg-base-100 shadow-md px-4">
-        <div class="navbar-start">
+
+        <!-- Logo (always visible) -->
+        <div style="flex:0 0 auto;">
             <a href="{% url 'home' %}" class="btn btn-ghost text-lg font-bold">MHW Home</a>
         </div>
 
-        <div class="navbar-center flex gap-1">
+        <!-- Desktop nav links -->
+        <div class="nav-desktop" style="flex:1; align-items:center; gap:2px; padding:0 8px;">
             <a href="{% url 'weapon_index' %}" class="btn btn-ghost btn-sm">Weapons</a>
             <a href="{% url 'armors_index' %}" class="btn btn-ghost btn-sm">Armor</a>
             <a href="{% url 'charms_index' %}" class="btn btn-ghost btn-sm">Charms</a>
@@ -19,18 +32,88 @@
             <a href="{% url 'builds_feed' %}" class="btn btn-ghost btn-sm">Community</a>
         </div>
 
-        <div class="navbar-end flex gap-2">
+        <!-- Desktop auth -->
+        <div class="nav-desktop" style="flex:0 0 auto; align-items:center; gap:8px; position:relative;">
             {% if user.is_authenticated %}
                 <a href="{% url 'build_create' %}" class="btn btn-ghost btn-sm">+ Create Build</a>
-                <a href="{% url 'my_builds' %}" class="btn btn-ghost btn-sm">My Builds</a>
-                <a href="{% url 'inventory_home' %}" class="btn btn-ghost btn-sm">Inventory</a>
-                <a href="{% url 'account_logout' %}" class="btn btn-outline btn-sm">Logout</a>
+                <div style="position:relative;">
+                    <button onclick="toggleAccountMenu()" style="display:flex; align-items:center; gap:8px; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:6px 12px; cursor:pointer; color:white; font-size:0.85rem; font-weight:600;">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:20px; height:20px; color:#94a3b8;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span>{{ user.first_name|default:user.username }}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:14px; height:14px; color:#94a3b8;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="account-menu" style="display:none; position:absolute; top:calc(100% + 8px); right:0; background:#1e293b; border:1px solid #334155; border-radius:10px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.5); min-width:160px; z-index:999;">
+                        <a href="{% url 'my_builds' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Builds</a>
+                        <a href="{% url 'inventory_home' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Inventory</a>
+                        <a href="{% url 'my_hunts' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Hunts</a>
+                        <div style="height:1px; background:#334155;"></div>
+                        <a href="{% url 'account_logout' %}" style="display:block; padding:10px 16px; color:#ef4444; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Logout</a>
+                    </div>
+                </div>
             {% else %}
                 <a href="/accounts/google/login/" class="btn btn-primary btn-sm">Login with Google</a>
             {% endif %}
         </div>
+
+        <!-- Hamburger button (small screens only) -->
+        <div class="nav-hamburger" style="flex:1; justify-content:flex-end;">
+            <button onclick="toggleMenu()" class="btn btn-ghost btn-sm" aria-label="Menu">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:24px; height:24px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile dropdown menu -->
+    <div id="mobile-menu" style="background:#1e293b; border-bottom:1px solid #334155; padding:12px 16px; flex-direction:column; gap:4px;">
+        <a href="{% url 'weapon_index' %}" class="btn btn-ghost btn-sm justify-start">Weapons</a>
+        <a href="{% url 'armors_index' %}" class="btn btn-ghost btn-sm justify-start">Armor</a>
+        <a href="{% url 'charms_index' %}" class="btn btn-ghost btn-sm justify-start">Charms</a>
+        <a href="{% url 'monsters_index' %}" class="btn btn-ghost btn-sm justify-start">Monsters</a>
+        <a href="{% url 'decorations_index' %}" class="btn btn-ghost btn-sm justify-start">Decorations</a>
+        <a href="{% url 'builds_feed' %}" class="btn btn-ghost btn-sm justify-start">Community</a>
+        <div style="height:1px; background:#334155; margin:8px 0;"></div>
+        {% if user.is_authenticated %}
+            <a href="{% url 'build_create' %}" class="btn btn-ghost btn-sm justify-start">+ Create Build</a>
+            <a href="{% url 'my_builds' %}" class="btn btn-ghost btn-sm justify-start">Builds</a>
+            <a href="{% url 'inventory_home' %}" class="btn btn-ghost btn-sm justify-start">Inventory</a>
+            <a href="{% url 'my_hunts' %}" class="btn btn-ghost btn-sm justify-start">Hunts</a>
+            <a href="{% url 'account_logout' %}" class="btn btn-outline btn-sm justify-start">Logout</a>
+        {% else %}
+            <a href="/accounts/google/login/" class="btn btn-primary btn-sm justify-start">Login with Google</a>
+        {% endif %}
     </div>
 
     {% block content %}{% endblock %}
+
+    <script>
+    function toggleMenu() {
+        const menu = document.getElementById('mobile-menu');
+        menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function toggleAccountMenu() {
+        const menu = document.getElementById('account-menu');
+        if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('account-menu');
+        if (menu && !e.target.closest('#account-menu') && !e.target.closest('button[onclick="toggleAccountMenu()"]')) {
+            menu.style.display = 'none';
+        }
+    });
+
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768) {
+            document.getElementById('mobile-menu').style.display = 'none';
+        }
+    });
+    </script>
 </body>
 </html>

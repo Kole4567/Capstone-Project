@@ -32,21 +32,12 @@ def weapon_index(request):
     )
     rarities = Weapon.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
 
-    try:
-        page_size = int(request.GET.get("page_size", 15))
-    except (TypeError, ValueError):
-        page_size = 15
-    if page_size not in (10, 15, 20):
-        page_size = 15
-
-    paginator = Paginator(weapons_qs, page_size)
+    paginator = Paginator(weapons_qs, 12)
     page_number = request.GET.get("page", 1)
     page_obj = paginator.get_page(page_number)
 
-    can_manage_inventory = request.user.is_authenticated
     owned_weapon_ids = set()
-
-    if can_manage_inventory:
+    if request.user.is_authenticated:
         current_page_weapon_ids = [w.id for w in page_obj.object_list]
         owned_weapon_ids = set(
             WeaponInventory.objects.filter(
@@ -55,23 +46,20 @@ def weapon_index(request):
             ).values_list("weapon_id", flat=True)
         )
 
-    params = {'page_size': page_size}
-    if q:
-        params['q'] = q
-    if weapon_type:
-        params['weapon_type'] = weapon_type
-    if element_filter:
-        params['element'] = element_filter
-    if rarity_filter:
-        params['rarity'] = rarity_filter
+    params = {}
+    if q: params['q'] = q
+    if weapon_type: params['weapon_type'] = weapon_type
+    if element_filter: params['element'] = element_filter
+    if rarity_filter: params['rarity'] = rarity_filter
     filter_qs = urlencode(params)
+
+    cur = page_obj.number
+    total = page_obj.paginator.num_pages
+    page_range = list(range(max(1, cur - 1), min(total, cur + 1) + 1))
 
     return render(request, "weapons.html", {
         "weapons": page_obj.object_list,
         "page_obj": page_obj,
-        "paginator": paginator,
-        "page_size": page_size,
-        "can_manage_inventory": can_manage_inventory,
         "owned_weapon_ids": owned_weapon_ids,
         "q": q,
         "weapon_type": weapon_type,
@@ -81,4 +69,5 @@ def weapon_index(request):
         "elements": elements,
         "rarities": rarities,
         "filter_qs": filter_qs,
+        "page_range": page_range,
     })

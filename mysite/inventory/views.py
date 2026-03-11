@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 
 from MonsterHunterWorld.models import Weapon, Armor, Charm, Decoration
 from .models import (
@@ -139,6 +139,15 @@ def add_decoration(request, pk):
         "quantity": obj.quantity,
         "message": "Decoration added",
     })
+
+@login_required
+@require_POST
+def reset_inventory(request):
+    WeaponInventory.objects.filter(user=request.user).delete()
+    ArmorInventory.objects.filter(user=request.user).delete()
+    CharmInventory.objects.filter(user=request.user).delete()
+    DecorationInventory.objects.filter(user=request.user).delete()
+    return redirect('inventory_home')
 
 @login_required
 @require_POST

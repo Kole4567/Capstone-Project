@@ -3,7 +3,7 @@
 <div style="background-color:#0f172a; min-height:100vh; padding:40px 20px; color:white; font-family:sans-serif;">
     <div style="max-width:1200px; margin:0 auto;">
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
             <h1 style="font-size:2.5rem; font-weight:900; font-style:italic; color:#a855f7; text-transform:uppercase; margin:0;">
                 Community Builds
             </h1>
@@ -13,6 +13,39 @@
                 + Create Build
             </a>
             {% endif %}
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <form method="get" style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:12px 16px; margin-bottom:16px; margin-left:auto; width:fit-content; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
+            <input type="hidden" name="page" value="1">
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Sort</label>
+                    <select name="sort" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px; font-family:inherit; font-size:0.9rem; width:160px;">
+                        <option value="recent" {% if sort == 'recent' %}selected{% endif %}>Recent</option>
+                        <option value="upvotes" {% if sort == 'upvotes' %}selected{% endif %}>Most Upvoted</option>
+                        <option value="comments" {% if sort == 'comments' %}selected{% endif %}>Most Commented</option>
+                    </select>
+                </div>
+                <div style="display:flex; align-items:flex-end; gap:8px;">
+                    <button type="button" onclick="toggleSearch(this)"
+                            style="background:#1e293b; border:1px solid #a855f7; border-radius:8px; padding:8px 10px; color:#a855f7; cursor:pointer; display:flex; align-items:center; justify-content:center;"
+                            onmouseover="this.style.background='rgba(168,85,247,0.15)'" onmouseout="this.style.background='#1e293b'">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </button>
+                    <input type="text" name="q" value="{{ q }}" placeholder="Build title…"
+                           style="display:{% if q %}block{% else %}none{% endif %}; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem; font-family:inherit; width:240px; box-sizing:border-box;"
+                           onkeydown="if(event.key==='Enter'){this.form.submit();}">
+                </div>
+                <button type="submit" style="background:#a855f7; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer; font-family:inherit;">Search</button>
+            </div>
+        </form>
+
+        <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:14px;">
+            <span style="color:#a855f7; font-weight:700;">{{ page_obj.paginator.count }}</span>
+            build{{ page_obj.paginator.count|pluralize }}{% if q %} found{% endif %}
         </div>
 
         {% if builds %}
@@ -64,9 +97,31 @@
             </div>
             {% endfor %}
         </div>
+
+        <!-- Pagination -->
+        {% if page_obj %}
+        <div style="display:flex; justify-content:center; align-items:center; gap:6px; margin-top:28px; flex-wrap:wrap;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">«</a>
+                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">‹</a>
+            {% endif %}
+            {% for p in page_range %}
+                {% if p == page_obj.number %}
+                    <span style="padding:8px 13px; background:#f8fafc; border:1px solid #f8fafc; border-radius:8px; color:#0f172a; font-weight:700;">{{ p }}</span>
+                {% else %}
+                    <a href="?page={{ p }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">{{ p }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">›</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">»</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {% else %}
         <div style="text-align:center; padding:80px; color:#475569;">
-            <p style="font-size:1.2rem; margin-bottom:16px;">No builds shared yet.</p>
+            <p style="font-size:1.2rem; margin-bottom:16px;">No builds found.</p>
             {% if user.is_authenticated %}
             <a href="{% url 'build_create' %}" style="color:#a855f7; font-weight:700;">Be the first to share one →</a>
             {% endif %}
@@ -76,6 +131,16 @@
 </div>
 
 <script>
+function toggleSearch(btn) {
+    const input = btn.nextElementSibling;
+    if (input.style.display === 'none' || input.style.display === '') {
+        input.style.display = 'block';
+        input.focus();
+    } else {
+        input.style.display = 'none';
+    }
+}
+
 function toggleLike(buildId, btn) {
     fetch(`/builds/${buildId}/like/`, {
         method: 'POST',

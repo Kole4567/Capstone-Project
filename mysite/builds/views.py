@@ -3,24 +3,63 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
+from django.core.paginator import Paginator
+from django.db.models import Count
 from MonsterHunterWorld.models import Weapon, Armor, Charm, Decoration
 from .models import SavedBuild, BuildLike, BuildComment
 
 
 def feed(request):
+    q = request.GET.get('q', '').strip()
+    sort = request.GET.get('sort', 'recent')
+
     builds = SavedBuild.objects.filter(is_public=True).select_related(
         'user', 'weapon'
-    ).prefetch_related('likes', 'comments').order_by('-created_at')
+    ).prefetch_related('likes', 'comments').annotate(
+        likes_count=Count('likes', distinct=True),
+        comments_count=Count('comments', distinct=True),
+    )
+
+    if q:
+        builds = builds.filter(title__icontains=q) | builds.filter(description__icontains=q)
+
+    if sort == 'upvotes':
+        builds = builds.order_by('-likes_count', '-created_at')
+    elif sort == 'comments':
+        builds = builds.order_by('-comments_count', '-created_at')
+    else:
+        builds = builds.order_by('-created_at')
+
+    paginator = Paginator(builds, 12)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+    cur = page_obj.number
+    total = page_obj.paginator.num_pages
+    page_range = list(range(max(1, cur - 1), min(total, cur + 1) + 1))
+
+    filter_qs = ''
+    if q:
+        filter_qs += f'q={q}&'
+    if sort and sort != 'recent':
+        filter_qs += f'sort={sort}&'
 
     liked_ids = set()
     if request.user.is_authenticated:
         liked_ids = set(BuildLike.objects.filter(user=request.user).values_list('build_id', flat=True))
 
     return render(request, 'builds/feed.html', {
-        'builds': builds,
+        'builds': page_obj,
+        'page_obj': page_obj,
+        'page_range': page_range,
+        'filter_qs': filter_qs,
         'liked_ids': liked_ids,
+        'q': q,
+        'sort': sort,
     })
 
+
+def _pk(post, key):
+    val = post.get(key, '').strip()
+    return val or None
 
 @login_required
 def create(request):
@@ -29,13 +68,13 @@ def create(request):
             user=request.user,
             title=request.POST.get('title', '').strip(),
             description=request.POST.get('description', '').strip(),
-            weapon=Weapon.objects.filter(pk=request.POST.get('weapon')).first(),
-            head=Armor.objects.filter(pk=request.POST.get('head')).first(),
-            chest=Armor.objects.filter(pk=request.POST.get('chest')).first(),
-            arms=Armor.objects.filter(pk=request.POST.get('arms')).first(),
-            waist=Armor.objects.filter(pk=request.POST.get('waist')).first(),
-            legs=Armor.objects.filter(pk=request.POST.get('legs')).first(),
-            charm=Charm.objects.filter(pk=request.POST.get('charm')).first(),
+            weapon=Weapon.objects.filter(pk=_pk(request.POST, 'weapon')).first(),
+            head=Armor.objects.filter(pk=_pk(request.POST, 'head')).first(),
+            chest=Armor.objects.filter(pk=_pk(request.POST, 'chest')).first(),
+            arms=Armor.objects.filter(pk=_pk(request.POST, 'arms')).first(),
+            waist=Armor.objects.filter(pk=_pk(request.POST, 'waist')).first(),
+            legs=Armor.objects.filter(pk=_pk(request.POST, 'legs')).first(),
+            charm=Charm.objects.filter(pk=_pk(request.POST, 'charm')).first(),
             is_public=request.POST.get('is_public') == 'on',
         )
         deco_ids = request.POST.getlist('decorations')
@@ -82,13 +121,13 @@ def edit(request, pk):
     if request.method == 'POST':
         build.title = request.POST.get('title', '').strip()
         build.description = request.POST.get('description', '').strip()
-        build.weapon = Weapon.objects.filter(pk=request.POST.get('weapon')).first()
-        build.head = Armor.objects.filter(pk=request.POST.get('head')).first()
-        build.chest = Armor.objects.filter(pk=request.POST.get('chest')).first()
-        build.arms = Armor.objects.filter(pk=request.POST.get('arms')).first()
-        build.waist = Armor.objects.filter(pk=request.POST.get('waist')).first()
-        build.legs = Armor.objects.filter(pk=request.POST.get('legs')).first()
-        build.charm = Charm.objects.filter(pk=request.POST.get('charm')).first()
+        build.weapon = Weapon.objects.filter(pk=_pk(request.POST, 'weapon')).first()
+        build.head = Armor.objects.filter(pk=_pk(request.POST, 'head')).first()
+        build.chest = Armor.objects.filter(pk=_pk(request.POST, 'chest')).first()
+        build.arms = Armor.objects.filter(pk=_pk(request.POST, 'arms')).first()
+        build.waist = Armor.objects.filter(pk=_pk(request.POST, 'waist')).first()
+        build.legs = Armor.objects.filter(pk=_pk(request.POST, 'legs')).first()
+        build.charm = Charm.objects.filter(pk=_pk(request.POST, 'charm')).first()
         build.is_public = request.POST.get('is_public') == 'on'
         build.save()
         deco_ids = request.POST.getlist('decorations')
@@ -147,6 +186,61 @@ def comment(request, pk):
 def my_builds(request):
     builds = SavedBuild.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'builds/my_builds.html', {'builds': builds})
+
+
+@login_required
+def my_builds_json(request):
+    builds = SavedBuild.objects.filter(user=request.user).order_by('-created_at').values('pk', 'title')
+    return JsonResponse({'builds': list(builds)})
+
+
+ARMOR_TYPE_TO_SLOT = {'head': 'head', 'chest': 'chest', 'gloves': 'arms', 'waist': 'waist', 'legs': 'legs'}
+
+@login_required
+@require_POST
+def add_to_build(request):
+    build_pk = request.POST.get('build_pk')
+    item_type = request.POST.get('item_type')
+    item_pk = request.POST.get('item_pk')
+    force = request.POST.get('force') == 'true'
+
+    build = get_object_or_404(SavedBuild, pk=build_pk, user=request.user)
+
+    if item_type == 'weapon':
+        item = get_object_or_404(Weapon, pk=item_pk)
+        existing = build.weapon
+        if existing and not force:
+            return JsonResponse({'warning': True, 'existing_name': existing.name, 'item_name': item.name})
+        build.weapon = item
+        build.save()
+
+    elif item_type == 'armor':
+        item = get_object_or_404(Armor, pk=item_pk)
+        slot = ARMOR_TYPE_TO_SLOT.get(item.armor_type)
+        if not slot:
+            return JsonResponse({'error': 'Unknown armor type'}, status=400)
+        existing = getattr(build, slot)
+        if existing and not force:
+            return JsonResponse({'warning': True, 'existing_name': existing.name, 'item_name': item.name, 'slot': slot})
+        setattr(build, slot, item)
+        build.save()
+
+    elif item_type == 'charm':
+        item = get_object_or_404(Charm, pk=item_pk)
+        existing = build.charm
+        if existing and not force:
+            return JsonResponse({'warning': True, 'existing_name': existing.name, 'item_name': item.name})
+        build.charm = item
+        build.save()
+
+    elif item_type == 'decoration':
+        item = get_object_or_404(Decoration, pk=item_pk)
+        build.decorations.add(item)
+
+    else:
+        return JsonResponse({'error': 'Invalid item type'}, status=400)
+
+    return JsonResponse({'success': True})
 
 
 def user_profile(request, username):
