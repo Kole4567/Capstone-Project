@@ -22,7 +22,7 @@
   </div>
 </div>
 <!-- MAIN CONTENT -->
-<div id="main-content" class="bg-base-100 py-16">
+<div id="main-content" class="bg-base-100 py-6">
 
   <!-- CARDS -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-8 px-4 lg:px-0 max-w-7xl mx-auto">
@@ -87,21 +87,19 @@
       </div>
     </div>
 
-  </div>
-
-      <!-- Monsters -->
-    <div class="card bg-base-200 shadow-xl hover:scale-105 transition-transform duration-300 border border-accent/20">
+    <!-- Monsters (spans full width) -->
+    <div class="card bg-base-200 shadow-xl hover:scale-105 transition-transform duration-300 border border-accent/20" style="grid-column: 1 / -1;">
       <figure class="px-10 pt-10">
         <img
           src="{% static 'images/monsters/monster_logo.webp' %}"
-          alt="Charms"
+          alt="Monsters"
           class="rounded-xl h-40 object-contain"
         />
       </figure>
       <div class="card-body items-center text-center">
-        <h2 class="card-title text-2xl font-bold">Monster</h2>
-        <p>Are you ready to tak up the fight?</p>
-        <div class="card-actions mt-4">
+        <h2 class="card-title text-2xl font-bold">Monsters</h2>
+        <p>Are you ready to take up the fight?</p>
+        <div class="card-actions mt-2">
           <a href="{% url 'monsters_index' %}" class="btn btn-outline btn-accent">
             Browse Monsters
           </a>
@@ -112,7 +110,8 @@
   </div>
 
   <!-- STATS -->
-  <div class="stats shadow bg-base-300 w-full mt-16 border border-white/5 max-w-7xl mx-auto">
+  <div class="max-w-7xl mx-auto px-4 lg:px-0 mt-16">
+  <div class="stats shadow bg-base-300 w-full border border-white/5">
 
     <div class="stat">
       <div class="stat-figure text-primary">
@@ -123,7 +122,7 @@
         </svg>
       </div>
       <div class="stat-title">Monsters Tracked</div>
-      <div class="stat-value text-primary">71</div>
+      <div class="stat-value text-primary">{{ monster_count }}</div>
       <div class="stat-desc">Includes Iceborne expansion</div>
     </div>
 
@@ -136,10 +135,11 @@
         </svg>
       </div>
       <div class="stat-title">Weapon Variations</div>
-      <div class="stat-value text-secondary">2,400+</div>
+      <div class="stat-value text-secondary">{{ weapon_count }}</div>
       <div class="stat-desc">Across 14 weapon types</div>
     </div>
 
+  </div>
   </div>
 
 </div>

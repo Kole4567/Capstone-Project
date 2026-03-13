@@ -5,18 +5,17 @@
 
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
             <div style="display:flex; align-items:center; gap:32px;">
-                <h1 style="font-size:2.5rem; font-weight:900; font-style:italic; color:#a855f7; text-transform:uppercase; margin:0;">
-                    <a href="{% url 'builds_feed' %}" style="color:inherit; text-decoration:none;">Builds</a>
+                <h1 style="font-size:2.5rem; font-weight:900; font-style:italic; color:#10b981; text-transform:uppercase; margin:0;">
+                    <a href="{% url 'community_feed' %}" style="color:inherit; text-decoration:none;">Community</a>
                 </h1>
                 {% if user.is_authenticated %}
-                <a href="{% url 'build_create' %}"
-                   style="background:#a855f7; color:white; border-radius:10px; padding:12px 24px; font-weight:700; text-decoration:none; font-size:0.9rem; white-space:nowrap;">
-                    + Create Build
+                <a href="{% url 'community_create' %}"
+                   style="background:#10b981; color:white; border-radius:10px; padding:12px 24px; font-weight:700; text-decoration:none; font-size:0.9rem; white-space:nowrap;">
+                    + Create Post
                 </a>
                 {% endif %}
             </div>
             <div style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;">
-                <!-- Search & Filter Bar -->
                 <form method="get" style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
                     <input type="hidden" name="page" value="1">
                     <div style="display:flex; gap:8px; align-items:flex-end;">
@@ -30,76 +29,61 @@
                         </div>
                         <div style="display:flex; align-items:flex-end; gap:8px;">
                             <button type="button" onclick="toggleSearch(this)"
-                                    style="background:#1e293b; border:1px solid #a855f7; border-radius:8px; padding:8px 10px; color:#a855f7; cursor:pointer; display:flex; align-items:center; justify-content:center;"
-                                    onmouseover="this.style.background='rgba(168,85,247,0.15)'" onmouseout="this.style.background='#1e293b'">
+                                    style="background:#1e293b; border:1px solid #10b981; border-radius:8px; padding:8px 10px; color:#10b981; cursor:pointer; display:flex; align-items:center; justify-content:center;"
+                                    onmouseover="this.style.background='rgba(16,185,129,0.15)'" onmouseout="this.style.background='#1e293b'">
                                 <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                                 </svg>
                             </button>
-                            <input type="text" name="q" value="{{ q }}" placeholder="Build title…"
+                            <input type="text" name="q" value="{{ q }}" placeholder="Post title…"
                                    style="display:{% if q %}block{% else %}none{% endif %}; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem; font-family:inherit; width:240px; box-sizing:border-box;"
                                    onkeydown="if(event.key==='Enter'){this.form.submit();}">
                         </div>
-                        <button type="submit" style="background:#a855f7; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer; font-family:inherit;">Search</button>
+                        <button type="submit" style="background:#10b981; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer; font-family:inherit;">Search</button>
                     </div>
                 </form>
             </div>
         </div>
 
         <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:14px;">
-            <span style="color:#a855f7; font-weight:700;">{{ page_obj.paginator.count }}</span>
-            build{{ page_obj.paginator.count|pluralize }}{% if q %} found{% endif %}
+            <span style="color:#10b981; font-weight:700;">{{ page_obj.paginator.count }}</span>
+            post{{ page_obj.paginator.count|pluralize }}{% if q %} found{% endif %}
         </div>
 
-        {% if builds %}
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:24px;">
-            {% for build in builds %}
-            <div onclick="window.location='{% url 'build_detail' build.pk %}'"
-                 style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:16px; cursor:pointer; transition:border-color 0.15s;"
-                 onmouseover="this.style.borderColor='#a855f7'" onmouseout="this.style.borderColor='#334155'">
+        {% if posts %}
+        <div style="display:flex; flex-direction:column; gap:4px;">
+            {% for post in posts %}
+            <a href="{% url 'community_detail' post.pk %}" style="text-decoration:none; display:block;">
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:14px 20px; display:flex; align-items:center; gap:20px;" onmouseover="this.style.borderColor='#10b981'" onmouseout="this.style.borderColor='#334155'">
 
-                <!-- Header -->
-                <div>
-                    <h2 style="font-size:1.2rem; font-weight:800; color:#f8fafc; margin:0 0 4px;">{{ build.title }}</h2>
-                    <a href="{% url 'user_profile' build.user.username %}" onclick="event.stopPropagation()"
-                       style="color:#a855f7; font-size:0.8rem; text-decoration:none; font-weight:600;">
-                        @{{ build.user.username }}
-                    </a>
-                    <span style="color:#475569; font-size:0.75rem; margin-left:8px;">{{ build.created_at|date:"M d, Y" }}</span>
-                </div>
-
-                {% if build.description %}
-                <p style="color:#94a3b8; font-size:0.85rem; margin:0; line-height:1.5;">{{ build.description|truncatechars:120 }}</p>
-                {% endif %}
-
-                <!-- Gear Summary -->
-                <div style="background:#0f172a; border-radius:8px; padding:12px; font-size:0.8rem; display:flex; flex-direction:column; gap:6px;">
-                    {% if build.weapon %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Weapon</span><span style="color:#60a5fa; font-weight:600;">{{ build.weapon.name }}</span></div>{% endif %}
-                    {% if build.head %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Head</span><span style="color:#f8fafc;">{{ build.head.name }}</span></div>{% endif %}
-                    {% if build.chest %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Chest</span><span style="color:#f8fafc;">{{ build.chest.name }}</span></div>{% endif %}
-                    {% if build.arms %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Arms</span><span style="color:#f8fafc;">{{ build.arms.name }}</span></div>{% endif %}
-                    {% if build.waist %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Waist</span><span style="color:#f8fafc;">{{ build.waist.name }}</span></div>{% endif %}
-                    {% if build.legs %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Legs</span><span style="color:#f8fafc;">{{ build.legs.name }}</span></div>{% endif %}
-                    {% if build.charm %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Charm</span><span style="color:#f472b6;">{{ build.charm.name }}</span></div>{% endif %}
-                </div>
-
-                <!-- Footer: likes, comments -->
-                <div style="display:flex; align-items:center; gap:12px; margin-top:auto;">
+                <!-- Upvote (left) -->
+                <div style="display:flex; flex-direction:column; align-items:center; gap:2px; min-width:36px;">
                     {% if user.is_authenticated %}
-                    <button onclick="event.stopPropagation(); toggleLike({{ build.pk }}, this)"
-                        style="background:{% if build.pk in liked_ids %}#7c3aed{% else %}#1e293b{% endif %}; border:1px solid #7c3aed; color:white; border-radius:8px; padding:6px 14px; font-size:0.8rem; font-weight:700; cursor:pointer;">
-                        ▲ <span class="like-count">{{ build.like_count }}</span>
-                    </button>
+                    <button onclick="event.preventDefault(); toggleUpvote({{ post.pk }}, this)"
+                        style="background:none; border:none; color:{% if post.pk in upvoted_ids %}#10b981{% else %}#64748b{% endif %}; font-size:1.1rem; cursor:pointer; padding:0; line-height:1;">▲</button>
                     {% else %}
-                    <span style="color:#64748b; font-size:0.8rem;">▲ {{ build.like_count }}</span>
+                    <span style="color:#64748b; font-size:1.1rem;">▲</span>
                     {% endif %}
-                    <span style="color:#64748b; font-size:0.8rem;">💬 {{ build.comment_count }}</span>
+                    <span class="upvote-count" style="color:#f8fafc; font-size:0.85rem; font-weight:700;">{{ post.upvote_count }}</span>
                 </div>
+
+                <!-- Content (middle) -->
+                <div style="flex:1; min-width:0;">
+                    <h2 style="font-size:1rem; font-weight:800; color:#f8fafc; margin:0 0 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ post.title }}</h2>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="color:#10b981; font-size:0.78rem; font-weight:600;">@{{ post.user.username }}</span>
+                        <span style="color:#475569; font-size:0.75rem;">{{ post.created_at|timesince }} ago</span>
+                        <span style="color:#475569; font-size:0.75rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:400px;">{{ post.content|truncatechars:80 }}</span>
+                    </div>
+                </div>
+
+                <!-- Comment count (right) -->
+                <span style="color:#64748b; font-size:0.8rem; white-space:nowrap;">💬 {{ post.comment_count }}</span>
             </div>
+            </a>
             {% endfor %}
         </div>
 
-        <!-- Pagination -->
         {% if page_obj %}
         <div style="display:flex; justify-content:center; align-items:center; gap:6px; margin-top:28px; flex-wrap:wrap;">
             {% if page_obj.has_previous %}
@@ -122,9 +106,9 @@
 
         {% else %}
         <div style="text-align:center; padding:80px; color:#475569;">
-            <p style="font-size:1.2rem; margin-bottom:16px;">No builds found.</p>
+            <p style="font-size:1.2rem; margin-bottom:16px;">No posts yet.</p>
             {% if user.is_authenticated %}
-            <a href="{% url 'build_create' %}" style="color:#a855f7; font-weight:700;">Be the first to share one →</a>
+            <a href="{% url 'community_create' %}" style="color:#10b981; font-weight:700;">Be the first to post →</a>
             {% endif %}
         </div>
         {% endif %}
@@ -142,15 +126,15 @@ function toggleSearch(btn) {
     }
 }
 
-function toggleLike(buildId, btn) {
-    fetch(`/builds/${buildId}/like/`, {
+function toggleUpvote(postId, btn) {
+    fetch(`/community/${postId}/upvote/`, {
         method: 'POST',
         headers: { 'X-CSRFToken': '{{ csrf_token }}' }
     })
     .then(r => r.json())
     .then(data => {
-        btn.querySelector('.like-count').textContent = data.count;
-        btn.style.background = data.liked ? '#7c3aed' : '#1e293b';
+        btn.querySelector('.upvote-count').textContent = data.count;
+        btn.style.background = data.upvoted ? '#065f46' : '#1e293b';
     });
 }
 </script>

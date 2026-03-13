@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 <div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
-    <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: #10b981; margin-bottom: 40px; text-transform: uppercase;">
-        Armor Compendium
-    </h1>
-
     <div style="max-width: 1200px; margin: 0 auto;">
 
+        <!-- Page Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
+            <h1 style="font-size: 2.5rem; font-weight: 900; font-style: italic; color: #10b981; text-transform: uppercase; margin:0;">
+                <a href="{% url 'armors_index' %}" style="color:inherit; text-decoration:none;">Armors</a>
+            </h1>
         <!-- Search & Filter Bar -->
-        <form method="get" style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:12px 16px; margin-bottom:16px; margin-left:auto; width:fit-content; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
+        <form method="get" style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
             <input type="hidden" name="page" value="1">
             <div style="display:flex; gap:8px; align-items:flex-end; margin-left:auto; flex-wrap:wrap;">
                 <div style="display:flex; flex-direction:column; gap:4px;">
@@ -53,6 +54,7 @@
                 <button type="submit" style="background:#10b981; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer; font-family:inherit;">Search</button>
             </div>
         </form>
+        </div>
 
         <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:14px;">
             <span style="color:#10b981; font-weight:700;">{{ page_obj.paginator.count }}</span>

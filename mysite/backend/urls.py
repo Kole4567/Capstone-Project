@@ -53,5 +53,6 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),
     path('inventory/', include('inventory.urls')),
     path('builds/', include('builds.urls')),
+    path('community/', include('community.urls')),
     path('profile/<str:username>/', builds_views.user_profile, name='user_profile'),
 ]

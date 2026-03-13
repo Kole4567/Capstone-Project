@@ -24,18 +24,31 @@
 
         <!-- Desktop nav links -->
         <div class="nav-desktop" style="flex:1; align-items:center; gap:2px; padding:0 8px;">
-            <a href="{% url 'weapon_index' %}" class="btn btn-ghost btn-sm">Weapons</a>
-            <a href="{% url 'armors_index' %}" class="btn btn-ghost btn-sm">Armor</a>
-            <a href="{% url 'charms_index' %}" class="btn btn-ghost btn-sm">Charms</a>
             <a href="{% url 'monsters_index' %}" class="btn btn-ghost btn-sm">Monsters</a>
-            <a href="{% url 'decorations_index' %}" class="btn btn-ghost btn-sm">Decorations</a>
-            <a href="{% url 'builds_feed' %}" class="btn btn-ghost btn-sm">Community</a>
+
+            <!-- Equipment dropdown -->
+            <div style="position:relative;" onmouseenter="this.querySelector('.equip-dropdown').style.display='block'" onmouseleave="this.querySelector('.equip-dropdown').style.display='none'">
+                <button class="btn btn-ghost btn-sm" style="display:flex; align-items:center; gap:4px;">
+                    Equipment
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width:12px; height:12px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div class="equip-dropdown" style="display:none; position:absolute; top:100%; left:0; background:#1e293b; border:1px solid #334155; border-radius:10px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.5); min-width:150px; z-index:999;">
+                    <a href="{% url 'weapon_index' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Weapons</a>
+                    <a href="{% url 'armors_index' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Armors</a>
+                    <a href="{% url 'charms_index' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Charms</a>
+                    <a href="{% url 'decorations_index' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Decorations</a>
+                </div>
+            </div>
+
+            <a href="{% url 'builds_feed' %}" class="btn btn-ghost btn-sm">Builds</a>
+            <a href="{% url 'community_feed' %}" class="btn btn-ghost btn-sm">Community</a>
         </div>
 
         <!-- Desktop auth -->
         <div class="nav-desktop" style="flex:0 0 auto; align-items:center; gap:8px; position:relative;">
             {% if user.is_authenticated %}
-                <a href="{% url 'build_create' %}" class="btn btn-ghost btn-sm">+ Create Build</a>
                 <div style="position:relative;">
                     <button onclick="toggleAccountMenu()" style="display:flex; align-items:center; gap:8px; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:6px 12px; cursor:pointer; color:white; font-size:0.85rem; font-weight:600;">
                         <svg xmlns="http://www.w3.org/2000/svg" style="width:20px; height:20px; color:#94a3b8;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -48,6 +61,7 @@
                     </button>
                     <div id="account-menu" style="display:none; position:absolute; top:calc(100% + 8px); right:0; background:#1e293b; border:1px solid #334155; border-radius:10px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.5); min-width:160px; z-index:999;">
                         <a href="{% url 'my_builds' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Builds</a>
+                        <a href="{% url 'my_posts_community' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Posts</a>
                         <a href="{% url 'inventory_home' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Inventory</a>
                         <a href="{% url 'my_hunts' %}" style="display:block; padding:10px 16px; color:#f8fafc; font-size:0.85rem; font-weight:600; text-decoration:none;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">Hunts</a>
                         <div style="height:1px; background:#334155;"></div>
@@ -71,16 +85,18 @@
 
     <!-- Mobile dropdown menu -->
     <div id="mobile-menu" style="background:#1e293b; border-bottom:1px solid #334155; padding:12px 16px; flex-direction:column; gap:4px;">
-        <a href="{% url 'weapon_index' %}" class="btn btn-ghost btn-sm justify-start">Weapons</a>
-        <a href="{% url 'armors_index' %}" class="btn btn-ghost btn-sm justify-start">Armor</a>
-        <a href="{% url 'charms_index' %}" class="btn btn-ghost btn-sm justify-start">Charms</a>
         <a href="{% url 'monsters_index' %}" class="btn btn-ghost btn-sm justify-start">Monsters</a>
-        <a href="{% url 'decorations_index' %}" class="btn btn-ghost btn-sm justify-start">Decorations</a>
-        <a href="{% url 'builds_feed' %}" class="btn btn-ghost btn-sm justify-start">Community</a>
+        <div style="color:#94a3b8; font-size:0.7rem; font-weight:700; text-transform:uppercase; padding:6px 8px 2px;">Equipment</div>
+        <a href="{% url 'weapon_index' %}" class="btn btn-ghost btn-sm justify-start" style="padding-left:20px;">Weapons</a>
+        <a href="{% url 'armors_index' %}" class="btn btn-ghost btn-sm justify-start" style="padding-left:20px;">Armors</a>
+        <a href="{% url 'charms_index' %}" class="btn btn-ghost btn-sm justify-start" style="padding-left:20px;">Charms</a>
+        <a href="{% url 'decorations_index' %}" class="btn btn-ghost btn-sm justify-start" style="padding-left:20px;">Decorations</a>
+        <a href="{% url 'builds_feed' %}" class="btn btn-ghost btn-sm justify-start">Builds</a>
+        <a href="{% url 'community_feed' %}" class="btn btn-ghost btn-sm justify-start">Community</a>
         <div style="height:1px; background:#334155; margin:8px 0;"></div>
         {% if user.is_authenticated %}
-            <a href="{% url 'build_create' %}" class="btn btn-ghost btn-sm justify-start">+ Create Build</a>
             <a href="{% url 'my_builds' %}" class="btn btn-ghost btn-sm justify-start">Builds</a>
+            <a href="{% url 'my_posts_community' %}" class="btn btn-ghost btn-sm justify-start">Posts</a>
             <a href="{% url 'inventory_home' %}" class="btn btn-ghost btn-sm justify-start">Inventory</a>
             <a href="{% url 'my_hunts' %}" class="btn btn-ghost btn-sm justify-start">Hunts</a>
             <a href="{% url 'account_logout' %}" class="btn btn-outline btn-sm justify-start">Logout</a>

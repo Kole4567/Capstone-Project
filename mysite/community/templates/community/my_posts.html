@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="background-color:#0f172a; min-height:100vh; padding:40px 20px; color:white; font-family:sans-serif;">
+    <div style="max-width:1000px; margin:0 auto;">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
+            <h1 style="font-size:2.5rem; font-weight:900; font-style:italic; color:#10b981; text-transform:uppercase; margin:0;">
+                My Posts
+            </h1>
+            <a href="{% url 'community_create' %}"
+               style="background:#10b981; color:white; border-radius:10px; padding:12px 24px; font-weight:700; text-decoration:none; font-size:0.9rem;">
+                + Create Post
+            </a>
+        </div>
+
+        {% if posts %}
+        <div style="display:flex; flex-direction:column; gap:16px;">
+            {% for post in posts %}
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+
+                <div style="flex:1; min-width:200px;">
+                    <h2 style="font-size:1.1rem; font-weight:800; color:#f8fafc; margin:0 0 6px;">{{ post.title }}</h2>
+                    <p style="color:#64748b; font-size:0.8rem; margin:0;">
+                        {{ post.created_at|date:"M d, Y" }} &nbsp;·&nbsp;
+                        ▲ {{ post.upvote_count }} &nbsp;·&nbsp;
+                        💬 {{ post.comment_count }}
+                    </p>
+                    <p style="color:#94a3b8; font-size:0.85rem; margin:8px 0 0; line-height:1.4;">{{ post.content|truncatechars:100 }}</p>
+                </div>
+
+                <div style="display:flex; gap:10px; flex-shrink:0;">
+                    <a href="{% url 'community_detail' post.pk %}"
+                       style="background:#334155; color:white; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:700; text-decoration:none;">
+                        View
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:80px; color:#475569;">
+            <p style="font-size:1.2rem; margin-bottom:16px;">You haven't created any posts yet.</p>
+            <a href="{% url 'community_create' %}" style="color:#10b981; font-weight:700;">Create your first post →</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
