@@ -27,6 +27,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     'nonshipping-cryptographically-cammy.ngrok-free.dev',
+    '127.0.0.1',
+    'localhost',
 ]
 
 

@@ -1,7 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:32px; max-width:420px; width:90%; text-align:center;">
+        <h2 style="font-size:1.3rem; font-weight:900; color:#f8fafc; margin:0 0 10px;">Delete Post?</h2>
+        <p style="color:#94a3b8; font-size:0.9rem; margin:0 0 28px;">This action cannot be undone.</p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+            <button onclick="closeDeleteModal()"
+                    style="background:#334155; color:#f8fafc; border:none; border-radius:8px; padding:10px 28px; font-size:0.9rem; font-weight:700; cursor:pointer;">
+                Cancel
+            </button>
+            <form id="delete-form" method="post" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit"
+                        style="background:#7f1d1d; color:#fca5a5; border:1px solid #ef4444; border-radius:8px; padding:10px 28px; font-size:0.9rem; font-weight:700; cursor:pointer;">
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div style="background-color:#0f172a; min-height:100vh; padding:40px 20px; color:white; font-family:sans-serif;">
-    <div style="max-width:1000px; margin:0 auto;">
+    <div style="max-width:1200px; margin:0 auto;">
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
             <h1 style="font-size:2.5rem; font-weight:900; font-style:italic; color:#10b981; text-transform:uppercase; margin:0;">
@@ -14,27 +36,37 @@
         </div>
 
         {% if posts %}
-        <div style="display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; flex-direction:column; gap:4px;">
             {% for post in posts %}
-            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+            <a href="{% url 'community_detail' post.pk %}" style="text-decoration:none; display:block;">
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:14px 20px; display:flex; align-items:center; gap:20px;"
+                 onmouseover="this.style.borderColor='#10b981'" onmouseout="this.style.borderColor='#334155'">
 
-                <div style="flex:1; min-width:200px;">
-                    <h2 style="font-size:1.1rem; font-weight:800; color:#f8fafc; margin:0 0 6px;">{{ post.title }}</h2>
-                    <p style="color:#64748b; font-size:0.8rem; margin:0;">
-                        {{ post.created_at|date:"M d, Y" }} &nbsp;·&nbsp;
-                        ▲ {{ post.upvote_count }} &nbsp;·&nbsp;
-                        💬 {{ post.comment_count }}
-                    </p>
-                    <p style="color:#94a3b8; font-size:0.85rem; margin:8px 0 0; line-height:1.4;">{{ post.content|truncatechars:100 }}</p>
+                <!-- Upvote (left) -->
+                <div style="display:flex; flex-direction:column; align-items:center; gap:2px; min-width:36px;">
+                    <span style="color:#64748b; font-size:1.1rem;">▲</span>
+                    <span style="color:#f8fafc; font-size:0.85rem; font-weight:700;">{{ post.upvote_count }}</span>
                 </div>
 
-                <div style="display:flex; gap:10px; flex-shrink:0;">
-                    <a href="{% url 'community_detail' post.pk %}"
-                       style="background:#334155; color:white; border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:700; text-decoration:none;">
-                        View
-                    </a>
+                <!-- Content (middle) -->
+                <div style="flex:1; min-width:0;">
+                    <h2 style="font-size:1rem; font-weight:800; color:#f8fafc; margin:0 0 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ post.title }}</h2>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="color:#475569; font-size:0.75rem;">{{ post.created_at|timesince }} ago</span>
+                        <span style="color:#475569; font-size:0.75rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:400px;">{{ post.content|truncatechars:80 }}</span>
+                    </div>
+                </div>
+
+                <!-- Comment count + Delete (right) -->
+                <div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+                    <span style="color:#64748b; font-size:0.8rem; white-space:nowrap;">💬 {{ post.comment_count }}</span>
+                    <button onclick="event.preventDefault(); openDeleteModal('{% url 'community_post_delete' post.pk %}')"
+                            style="background:#7f1d1d; color:#fca5a5; border:1px solid #ef4444; border-radius:8px; padding:5px 14px; font-size:0.75rem; font-weight:700; cursor:pointer; white-space:nowrap;">
+                        Delete
+                    </button>
                 </div>
             </div>
+            </a>
             {% endfor %}
         </div>
         {% else %}
@@ -45,4 +77,18 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+function openDeleteModal(url) {
+    document.getElementById('delete-form').action = url;
+    const modal = document.getElementById('delete-modal');
+    modal.style.display = 'flex';
+}
+function closeDeleteModal() {
+    document.getElementById('delete-modal').style.display = 'none';
+}
+document.getElementById('delete-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteModal();
+});
+</script>
 {% endblock %}

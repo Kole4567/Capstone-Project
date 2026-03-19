@@ -96,6 +96,14 @@ def my_posts(request):
 
 @login_required
 @require_POST
+def post_delete(request, pk):
+    post = get_object_or_404(CommunityPost, pk=request.POST.get('pk') or pk, user=request.user)
+    post.delete()
+    return redirect('my_posts_community')
+
+
+@login_required
+@require_POST
 def upvote(request, pk):
     post = get_object_or_404(CommunityPost, pk=pk)
     if post.upvotes.filter(pk=request.user.pk).exists():

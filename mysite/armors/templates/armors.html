@@ -1,5 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
+
+<!-- Replace Item Modal -->
+<div id="replace-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:32px; max-width:420px; width:90%; text-align:center;">
+        <h2 style="font-size:1.3rem; font-weight:900; color:#f8fafc; margin:0 0 10px;">Replace Item?</h2>
+        <p id="replace-modal-msg" style="color:#94a3b8; font-size:0.9rem; margin:0 0 28px;"></p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+            <button onclick="closeReplaceModal()"
+                    style="background:#334155; color:#f8fafc; border:none; border-radius:8px; padding:10px 28px; font-size:0.9rem; font-weight:700; cursor:pointer;">
+                Cancel
+            </button>
+            <button onclick="confirmReplace()"
+                    style="background:#1e40af; color:white; border:1px solid #3b82f6; border-radius:8px; padding:10px 28px; font-size:0.9rem; font-weight:700; cursor:pointer;">
+                Replace
+            </button>
+        </div>
+    </div>
+</div>
+
 <div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
     <div style="max-width: 1200px; margin: 0 auto;">
 
@@ -247,9 +266,9 @@ function postAddToBuild(buildPk, itemId, itemType, force) {
     .then(r => r.json())
     .then(data => {
         if (data.warning) {
-            if (confirm(`This build already has "${data.existing_name}". Replace it with "${data.item_name}"?`)) {
-                postAddToBuild(buildPk, itemId, itemType, true);
-            }
+            pendingReplace = { buildPk, itemId, itemType };
+            document.getElementById('replace-modal-msg').textContent = `This build already has "${data.existing_name}". Replace it with "${data.item_name}"?`;
+            document.getElementById('replace-modal').style.display = 'flex';
         } else if (data.success) {
             showToast('Added to build!');
         }
@@ -278,6 +297,22 @@ document.addEventListener('click', e => {
     if (activePicker && !activePicker.contains(e.target) && !e.target.closest('button')) {
         activePicker.style.display = 'none'; activePicker = null;
     }
+});
+
+let pendingReplace = null;
+function confirmReplace() {
+    if (pendingReplace) {
+        const { buildPk, itemId, itemType } = pendingReplace;
+        pendingReplace = null;
+        closeReplaceModal();
+        postAddToBuild(buildPk, itemId, itemType, true);
+    }
+}
+function closeReplaceModal() {
+    document.getElementById('replace-modal').style.display = 'none';
+}
+document.getElementById('replace-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeReplaceModal();
 });
 </script>
 {% endblock %}
