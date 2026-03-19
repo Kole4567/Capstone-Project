@@ -118,6 +118,49 @@ Terminal 2 — Django
 NOTE: output.css being red in the editor is normal (generated file)
 
 ==================================================
+5. Ngrok Setup (Optional — for sharing with teammates)
+==================================================
+
+Ngrok lets you expose your local Django server to the internet so teammates
+can view your instance without running the server themselves.
+
+5.1 Install Ngrok
+
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  && echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list \
+  && sudo apt update \
+  && sudo apt install ngrok
+
+5.2 Add Your Authtoken
+
+Create a free account at https://ngrok.com and grab your authtoken from
+the dashboard, then run:
+
+   ngrok config add-authtoken <YOUR_AUTHTOKEN>
+
+⚠️ Do not share your authtoken or commit it to GitHub.
+
+5.3 Run the App with Ngrok
+
+You will need three terminals running simultaneously:
+
+Terminal 1 — Tailwind
+   node_modules/.bin/tailwindcss \
+   -i ./static/css/main.css \
+   -o ./static/css/output.css \
+   --watch
+
+Terminal 2 — Django
+   python manage.py runserver
+
+Terminal 3 — Ngrok
+   ngrok http 8000
+
+Share the forwarding URL from the ngrok terminal output with your teammate.
+
+==================================================
 
 END OF DOCUMENT
 
