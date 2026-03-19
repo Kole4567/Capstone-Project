@@ -148,6 +148,53 @@ def score_armor_total(monster, armor, decorations):
 
     return base + dec_score
 
+def collect_skill_levels(head, chest, legs, gloves, waist, charm, decorations):
+    skill_levels = {}
+
+    armors = [head, chest, legs, gloves, waist]
+
+    # armor skills
+    for armor in armors:
+        if not armor:
+            continue
+        for sk in armor.armor_skills.all():
+            name = sk.skill.name
+            lvl = sk.level
+
+            skill_levels[name] = skill_levels.get(name, 0) + lvl
+
+    # charm skills
+    if charm:
+        for sk in charm.charm_skills.all():
+            name = sk.skill.name
+            lvl = sk.level
+            skill_levels[name] = skill_levels.get(name, 0) + lvl
+
+    # decoration skills
+    for dec_list in decorations.values():
+        for d in dec_list:
+            for sk in d.decoration_skills.all():
+                name = sk.skill.name
+                lvl = sk.level
+                skill_levels[name] = skill_levels.get(name, 0) + lvl
+
+    return skill_levels
+
+
+def apply_skill_caps(skill_levels):
+    capped = {}
+
+    for name, lvl in skill_levels.items():
+
+        try:
+            skill = Skill.objects.get(name=name)
+            max_lvl = skill.max_level
+        except Skill.DoesNotExist:
+            max_lvl = lvl
+
+        capped[name] = min(lvl, max_lvl)
+
+    return capped
 # ===============================
 # 軽量ビルド生成
 # ===============================
@@ -301,6 +348,23 @@ def run_for_monster(monster_name):
 
     if build["charm"]:
         print(f"Charm: {build['charm'].name}")
+
+
+    skills = collect_skill_levels(
+    build["head"],
+    build["chest"],
+    build["legs"],
+    build["gloves"],
+    build["waist"],
+    build["charm"],
+    build["decorations"]
+    )
+
+    skills = apply_skill_caps(skills)
+
+    print("\n=== SKILLS ===")
+    for k, v in skills.items():
+        print(f"{k} Lv{v}")
 
 
 if __name__ == "__main__":
