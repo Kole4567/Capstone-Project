@@ -6,9 +6,41 @@
     <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: white; margin-bottom: 8px; text-transform: uppercase;">
         🎒 {{ request.user.get_full_name|default:request.user.username }}'s Loadout
     </h1>
-    <p style="text-align: center; color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 50px;">
+    <p style="text-align: center; color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 24px;">
         Inventory
     </p>
+
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 32px;">
+        <button onclick="document.getElementById('reset-modal').style.display='flex'"
+                style="background:#7f1d1d; color:#fca5a5; border:1px solid #ef4444; border-radius:8px; padding:10px 20px; font-size:0.85rem; font-weight:700; cursor:pointer;">
+            🗑 Reset Inventory
+        </button>
+    </div>
+
+    <!-- Reset Confirmation Modal -->
+    <div id="reset-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:999; align-items:center; justify-content:center;">
+        <div style="background:#1e293b; border:1px solid #ef4444; border-radius:16px; padding:36px; max-width:420px; width:90%; text-align:center;">
+            <div style="font-size:2.5rem; margin-bottom:16px;">⚠️</div>
+            <h2 style="color:#fca5a5; font-size:1.2rem; font-weight:900; margin:0 0 12px;">Reset Inventory?</h2>
+            <p style="color:#94a3b8; font-size:0.9rem; line-height:1.6; margin:0 0 28px;">
+                This will permanently remove <strong style="color:white;">all items</strong> from your inventory.<br>
+                <span style="color:#ef4444; font-weight:700;">This cannot be undone.</span>
+            </p>
+            <div style="display:flex; gap:12px; justify-content:center;">
+                <button onclick="document.getElementById('reset-modal').style.display='none'"
+                        style="background:#334155; color:white; border:none; border-radius:8px; padding:10px 24px; font-weight:700; cursor:pointer; font-size:0.9rem;">
+                    Cancel
+                </button>
+                <form method="post" action="{% url 'reset_inventory' %}" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit"
+                            style="background:#7f1d1d; color:#fca5a5; border:1px solid #ef4444; border-radius:8px; padding:10px 24px; font-weight:700; cursor:pointer; font-size:0.9rem;">
+                        Yes, Reset Everything
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- ============================= -->
     <!-- Weapons -->
@@ -16,31 +48,31 @@
     <div style="margin-bottom: 50px;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 2px solid #3b82f6; padding-bottom: 10px;">
             <span style="font-size: 1.5rem;">⚔️</span>
-            <h2 style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #3b82f6; letter-spacing: 0.1em;">Weapons</h2>
-            <span style="margin-left: auto; background: #1e3a5f; color: #3b82f6; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
+            <a href="{% url 'weapon_index' %}" style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #3b82f6; letter-spacing: 0.1em; text-decoration: none;">Weapons →</a>
+            <span id="count-weapon" style="margin-left: auto; background: #1e3a5f; color: #3b82f6; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
                 {{ weapons|length }} owned
             </span>
         </div>
 
-        {% if weapons %}
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
-                {% for item in weapons %}
-                <div style="background-color: #1e293b; border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(59,130,246,0.15); transition: transform 0.2s;">
-                    <div style="height: 3px; background: #3b82f6; border-radius: 999px; margin-bottom: 12px;"></div>
-                    <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;">{{ item.weapon.name }}</h3>
-                    <p style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">{{ item.weapon.weapon_type }}</p>
-                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem;">
-                        <span style="background: #1e3a5f; color: #60a5fa; padding: 2px 8px; border-radius: 4px;">R{{ item.weapon.rarity }}</span>
-                        <span style="color: #ef4444; font-weight: bold;">ATK {{ item.weapon.attack_raw }}</span>
-                    </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
+            {% if not weapons %}<div style="grid-column:1/-1; color:#475569; font-size:0.85rem; padding:8px 0;">No weapons owned yet.</div>{% endif %}
+            {% for item in weapons %}
+            <div id="inv-weapon-{{ item.weapon.id }}" style="position:relative; background-color: #1e293b; border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(59,130,246,0.15);">
+                <button onclick="removeItem('weapon', {{ item.weapon.id }})" style="position:absolute; top:8px; right:8px; background:transparent; border:none; color:#475569; font-size:0.85rem; cursor:pointer; line-height:1; padding:2px 5px; border-radius:4px;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#475569'">✕</button>
+                <div style="height: 3px; background: #3b82f6; border-radius: 999px; margin-bottom: 12px;"></div>
+                <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px; padding-right:16px;">{{ item.weapon.name }}</h3>
+                <p style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">{{ item.weapon.weapon_type }}</p>
+                <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem;">
+                    <span style="background: #1e3a5f; color: #60a5fa; padding: 2px 8px; border-radius: 4px;">R{{ item.weapon.rarity }}</span>
+                    <span style="color: #ef4444; font-weight: bold;">ATK {{ item.weapon.attack_raw }}</span>
                 </div>
-                {% endfor %}
             </div>
-        {% else %}
-            <div style="text-align: center; padding: 30px; border: 1px dashed #1e3a5f; border-radius: 12px; color: #475569;">
-                No weapons owned yet.
-            </div>
-        {% endif %}
+            {% empty %}
+            {% endfor %}
+            <a href="{% url 'weapon_index' %}" style="display:flex; align-items:center; justify-content:center; background:#1e293b; border:2px dashed #334155; border-radius:12px; min-height:100px; text-decoration:none; color:#475569; font-size:2rem; font-weight:300;"
+               onmouseover="this.style.borderColor='#3b82f6'; this.style.color='#3b82f6';"
+               onmouseout="this.style.borderColor='#334155'; this.style.color='#475569';">+</a>
+        </div>
     </div>
 
     <!-- ============================= -->
@@ -49,31 +81,31 @@
     <div style="margin-bottom: 50px;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 2px solid #10b981; padding-bottom: 10px;">
             <span style="font-size: 1.5rem;">🛡️</span>
-            <h2 style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #10b981; letter-spacing: 0.1em;">Armor</h2>
-            <span style="margin-left: auto; background: #064e3b; color: #10b981; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
+            <a href="{% url 'armors_index' %}" style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #10b981; letter-spacing: 0.1em; text-decoration: none;">Armor →</a>
+            <span id="count-armor" style="margin-left: auto; background: #064e3b; color: #10b981; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
                 {{ armors|length }} owned
             </span>
         </div>
 
-        {% if armors %}
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
-                {% for item in armors %}
-                <div style="background-color: #1e293b; border: 1px solid #10b981; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(16,185,129,0.15);">
-                    <div style="height: 3px; background: #10b981; border-radius: 999px; margin-bottom: 12px;"></div>
-                    <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;">{{ item.armor.name }}</h3>
-                    <p style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">{{ item.armor.armor_type }}</p>
-                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem;">
-                        <span style="background: #064e3b; color: #34d399; padding: 2px 8px; border-radius: 4px;">R{{ item.armor.rarity }}</span>
-                        <span style="color: #10b981; font-weight: bold;">DEF {{ item.armor.defense_base }}</span>
-                    </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
+            {% if not armors %}<div style="grid-column:1/-1; color:#475569; font-size:0.85rem; padding:8px 0;">No armor owned yet.</div>{% endif %}
+            {% for item in armors %}
+            <div id="inv-armor-{{ item.armor.id }}" style="position:relative; background-color: #1e293b; border: 1px solid #10b981; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(16,185,129,0.15);">
+                <button onclick="removeItem('armor', {{ item.armor.id }})" style="position:absolute; top:8px; right:8px; background:transparent; border:none; color:#475569; font-size:0.85rem; cursor:pointer; line-height:1; padding:2px 5px; border-radius:4px;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#475569'">✕</button>
+                <div style="height: 3px; background: #10b981; border-radius: 999px; margin-bottom: 12px;"></div>
+                <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px; padding-right:16px;">{{ item.armor.name }}</h3>
+                <p style="font-size: 0.7rem; color: #64748b; text-transform: uppercase;">{{ item.armor.armor_type }}</p>
+                <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem;">
+                    <span style="background: #064e3b; color: #34d399; padding: 2px 8px; border-radius: 4px;">R{{ item.armor.rarity }}</span>
+                    <span style="color: #10b981; font-weight: bold;">DEF {{ item.armor.defense_base }}</span>
                 </div>
-                {% endfor %}
             </div>
-        {% else %}
-            <div style="text-align: center; padding: 30px; border: 1px dashed #064e3b; border-radius: 12px; color: #475569;">
-                No armor owned yet.
-            </div>
-        {% endif %}
+            {% empty %}
+            {% endfor %}
+            <a href="{% url 'armors_index' %}" style="display:flex; align-items:center; justify-content:center; background:#1e293b; border:2px dashed #334155; border-radius:12px; min-height:100px; text-decoration:none; color:#475569; font-size:2rem; font-weight:300;"
+               onmouseover="this.style.borderColor='#10b981'; this.style.color='#10b981';"
+               onmouseout="this.style.borderColor='#334155'; this.style.color='#475569';">+</a>
+        </div>
     </div>
 
     <!-- ============================= -->
@@ -82,31 +114,31 @@
     <div style="margin-bottom: 50px;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 2px solid #f472b6; padding-bottom: 10px;">
             <span style="font-size: 1.5rem;">✨</span>
-            <h2 style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #f472b6; letter-spacing: 0.1em;">Charms</h2>
-            <span style="margin-left: auto; background: #4a1942; color: #f472b6; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
+            <a href="{% url 'charms_index' %}" style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #f472b6; letter-spacing: 0.1em; text-decoration: none;">Charms →</a>
+            <span id="count-charm" style="margin-left: auto; background: #4a1942; color: #f472b6; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
                 {{ charms|length }} owned
             </span>
         </div>
 
-        {% if charms %}
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
-                {% for item in charms %}
-                <div style="background-color: #1e293b; border: 1px solid #f472b6; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(244,114,182,0.15);">
-                    <div style="height: 3px; background: #f472b6; border-radius: 999px; margin-bottom: 12px;"></div>
-                    <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;">{{ item.charm.name }}</h3>
-                    {% if item.charm.rarity %}
-                    <div style="margin-top: 10px;">
-                        <span style="background: #4a1942; color: #f9a8d4; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;">R{{ item.charm.rarity }}</span>
-                    </div>
-                    {% endif %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
+            {% if not charms %}<div style="grid-column:1/-1; color:#475569; font-size:0.85rem; padding:8px 0;">No charms owned yet.</div>{% endif %}
+            {% for item in charms %}
+            <div id="inv-charm-{{ item.charm.id }}" style="position:relative; background-color: #1e293b; border: 1px solid #f472b6; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(244,114,182,0.15);">
+                <button onclick="removeItem('charm', {{ item.charm.id }})" style="position:absolute; top:8px; right:8px; background:transparent; border:none; color:#475569; font-size:0.85rem; cursor:pointer; line-height:1; padding:2px 5px; border-radius:4px;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#475569'">✕</button>
+                <div style="height: 3px; background: #f472b6; border-radius: 999px; margin-bottom: 12px;"></div>
+                <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px; padding-right:16px;">{{ item.charm.name }}</h3>
+                {% if item.charm.rarity %}
+                <div style="margin-top: 10px;">
+                    <span style="background: #4a1942; color: #f9a8d4; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;">R{{ item.charm.rarity }}</span>
                 </div>
-                {% endfor %}
+                {% endif %}
             </div>
-        {% else %}
-            <div style="text-align: center; padding: 30px; border: 1px dashed #4a1942; border-radius: 12px; color: #475569;">
-                No charms owned yet.
-            </div>
-        {% endif %}
+            {% empty %}
+            {% endfor %}
+            <a href="{% url 'charms_index' %}" style="display:flex; align-items:center; justify-content:center; background:#1e293b; border:2px dashed #334155; border-radius:12px; min-height:100px; text-decoration:none; color:#475569; font-size:2rem; font-weight:300;"
+               onmouseover="this.style.borderColor='#f472b6'; this.style.color='#f472b6';"
+               onmouseout="this.style.borderColor='#334155'; this.style.color='#475569';">+</a>
+        </div>
     </div>
 
     <!-- ============================= -->
@@ -115,32 +147,58 @@
     <div style="margin-bottom: 50px;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 2px solid #ef4444; padding-bottom: 10px;">
             <span style="font-size: 1.5rem;">💎</span>
-            <h2 style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #ef4444; letter-spacing: 0.1em;">Decorations</h2>
-            <span style="margin-left: auto; background: #450a0a; color: #ef4444; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
+            <a href="{% url 'decorations_index' %}" style="font-size: 1.5rem; font-weight: 900; text-transform: uppercase; color: #ef4444; letter-spacing: 0.1em; text-decoration: none;">Decorations →</a>
+            <span id="count-decoration" style="margin-left: auto; background: #450a0a; color: #ef4444; font-size: 0.7rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase;">
                 {{ decorations|length }} owned
             </span>
         </div>
 
-        {% if decorations %}
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
-                {% for item in decorations %}
-                <div style="background-color: #1e293b; border: 1px solid #ef4444; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(239,68,68,0.15);">
-                    <div style="height: 3px; background: #ef4444; border-radius: 999px; margin-bottom: 12px;"></div>
-                    <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;">{{ item.decoration.name }}</h3>
-                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem;">
-                        <span style="background: #450a0a; color: #fca5a5; padding: 2px 8px; border-radius: 4px;">R{{ item.decoration.rarity }}</span>
-                        <span style="color: #ef4444; font-weight: 900;">×{{ item.quantity }}</span>
-                    </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px;">
+            {% if not decorations %}<div style="grid-column:1/-1; color:#475569; font-size:0.85rem; padding:8px 0;">No decorations owned yet.</div>{% endif %}
+            {% for item in decorations %}
+            <div id="inv-decoration-{{ item.decoration.id }}" style="position:relative; background-color: #1e293b; border: 1px solid #f59e0b; border-radius: 12px; padding: 16px; box-shadow: 0 0 12px rgba(245,158,11,0.15);">
+                <button onclick="removeItem('decoration', {{ item.decoration.id }})" style="position:absolute; top:8px; right:8px; background:transparent; border:none; color:#475569; font-size:0.85rem; cursor:pointer; line-height:1; padding:2px 5px; border-radius:4px;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#475569'">✕</button>
+                <div style="height: 3px; background: #f59e0b; border-radius: 999px; margin-bottom: 12px;"></div>
+                <h3 style="font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px; padding-right:16px;">{{ item.decoration.name }}</h3>
+                <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.7rem;">
+                    <span style="background: #451a03; color: #fcd34d; padding: 2px 8px; border-radius: 4px;">R{{ item.decoration.rarity }}</span>
                 </div>
-                {% endfor %}
             </div>
-        {% else %}
-            <div style="text-align: center; padding: 30px; border: 1px dashed #450a0a; border-radius: 12px; color: #475569;">
-                No decorations owned yet.
-            </div>
-        {% endif %}
+            {% empty %}
+            {% endfor %}
+            <a href="{% url 'decorations_index' %}" style="display:flex; align-items:center; justify-content:center; background:#1e293b; border:2px dashed #334155; border-radius:12px; min-height:100px; text-decoration:none; color:#475569; font-size:2rem; font-weight:300;"
+               onmouseover="this.style.borderColor='#f59e0b'; this.style.color='#f59e0b';"
+               onmouseout="this.style.borderColor='#334155'; this.style.color='#475569';">+</a>
+        </div>
     </div>
 
 </div>
 
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function removeItem(type, id) {
+    fetch(`/inventory/remove/${type}/${id}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF }
+    })
+    .then(r => r.json())
+    .then(() => {
+        const card = document.getElementById(`inv-${type}-${id}`);
+        if (card) {
+            card.style.transition = 'opacity 0.3s, transform 0.3s';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                card.remove();
+                const badge = document.getElementById(`count-${type}`);
+                if (badge) {
+                    const current = parseInt(badge.textContent);
+                    badge.textContent = `${current - 1} owned`;
+                }
+            }, 300);
+        }
+    });
+}
+</script>
 {% endblock %}

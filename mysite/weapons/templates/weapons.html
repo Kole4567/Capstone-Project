@@ -4,131 +4,315 @@
 {% load static %}
 {% load static monsters_extra %}
 
+<!-- Replace Item Modal -->
+<div id="replace-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:32px; max-width:420px; width:90%; text-align:center;">
+        <h2 style="font-size:1.3rem; font-weight:900; color:#f8fafc; margin:0 0 10px;">Replace Item?</h2>
+        <p id="replace-modal-msg" style="color:#94a3b8; font-size:0.9rem; margin:0 0 28px;"></p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+            <button onclick="closeReplaceModal()"
+                    style="background:#334155; color:#f8fafc; border:none; border-radius:8px; padding:10px 28px; font-size:0.9rem; font-weight:700; cursor:pointer;">
+                Cancel
+            </button>
+            <button onclick="confirmReplace()"
+                    style="background:#1e40af; color:white; border:1px solid #3b82f6; border-radius:8px; padding:10px 28px; font-size:0.9rem; font-weight:700; cursor:pointer;">
+                Replace
+            </button>
+        </div>
+    </div>
+</div>
+
 <div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
-    <h1 style="text-align: center; font-size: 2.5rem; font-weight: 900; font-style: italic; color: #3b82f6; margin-bottom: 40px; text-transform: uppercase;">
-        Weapon Compendium
-    </h1>
+    <div style="max-width: 1200px; margin: 0 auto;">
 
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto;">
-        
-        {% for weapon in weapons %}
-        <div style="background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);">
-            
-            <h2 style="font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc;">
-                {{ weapon.name }}
-            </h2>
-
-            <img 
-                src="{% static weapon.weapon_type|weapon_icon %}" 
-                alt="{{ weapon.name }}" 
-                style="width:96px; height:96px; object-fit:contain; margin:0 auto 12px; display:block; image-rendering: pixelated;"
-            >
-
-            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem;">
-                
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Type</span>
-                    <span style="font-weight: 600;">{{ weapon.weapon_type|capfirst }}</span>
+        <!-- Page Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
+            <h1 style="font-size: 2.5rem; font-weight: 900; font-style: italic; color: #3b82f6; text-transform: uppercase; margin:0;">
+                <a href="{% url 'weapon_index' %}" style="color:inherit; text-decoration:none;">Weapons</a>
+            </h1>
+        <!-- Search & Filter Bar -->
+        <form method="get" style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
+            <input type="hidden" name="page" value="1">
+            <div style="display:flex; gap:8px; align-items:flex-end; margin-left:auto; flex-wrap:wrap;">
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Type</label>
+                    <select name="weapon_type" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px; font-family:inherit; font-size:0.9rem; width:140px;">
+                        <option value="">All Types</option>
+                        {% for wt in weapon_types %}
+                        <option value="{{ wt }}" {% if weapon_type == wt %}selected{% endif %}>{{ wt|capfirst }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Attack</span>
-                    <span style="font-weight: 600; color: #ef4444;">{{ weapon.attack_display }}</span>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Element</label>
+                    <select name="element" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px; font-family:inherit; font-size:0.9rem; width:140px;">
+                        <option value="">All Elements</option>
+                        <option value="none" {% if element_filter == 'none' %}selected{% endif %}>None</option>
+                        {% for el in elements %}
+                        <option value="{{ el }}" {% if element_filter == el %}selected{% endif %}>{{ el|capfirst }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Rarity</span>
-                    <span style="font-weight: 600; color: #f59e0b;">{{ weapon.rarity }}</span>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <label style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; font-weight:700;">Rarity</label>
+                    <select name="rarity" style="background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 10px; font-family:inherit; font-size:0.9rem; width:140px;">
+                        <option value="">All Rarities</option>
+                        {% for r in rarities %}
+                        <option value="{{ r }}" {% if rarity_filter == r|stringformat:"s" %}selected{% endif %}>R{{ r }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element</span>
-                    <span style="font-weight: 600;">{% if weapon.element %}{{ weapon.element }}{% else %}None{% endif %}</span>
+                <div style="display:flex; align-items:flex-end; gap:8px;">
+                    <button type="button" onclick="toggleSearch(this)"
+                            style="background:#1e293b; border:1px solid #3b82f6; border-radius:8px; padding:8px 10px; color:#3b82f6; cursor:pointer; display:flex; align-items:center; justify-content:center;"
+                            onmouseover="this.style.background='rgba(59,130,246,0.15)'" onmouseout="this.style.background='#1e293b'">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </button>
+                    <input type="text" name="q" value="{{ q }}" placeholder="Weapon name…"
+                           style="display:{% if q %}block{% else %}none{% endif %}; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem; font-family:inherit; width:240px; box-sizing:border-box;"
+                           onkeydown="if(event.key==='Enter'){this.form.submit();}">
                 </div>
+                <button type="submit" style="background:#3b82f6; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer; font-family:inherit;">Search</button>
+            </div>
+        </form>
+        </div>
 
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element Damage</span>
-                    <span style="font-weight: 600;">{{ weapon.element_damage|default:0 }}</span>
-                </div>
+        <div style="color:#94a3b8; font-size:0.85rem; margin-bottom:14px;">
+            <span style="color:#60a5fa; font-weight:700;">{{ page_obj.paginator.count }}</span>
+            weapon{{ page_obj.paginator.count|pluralize }}{% if q or weapon_type or element_filter or rarity_filter %} found{% endif %}
+        </div>
 
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
-                    <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Affinity</span>
-                    <span style="font-weight: 600; color: #38bdf8;">{{ weapon.affinity }}%</span>
-                </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px;">
+            {% for weapon in weapons %}
+            <div id="card-weapon-{{ weapon.id }}"
+                 style="position:relative; background-color: #1e293b; border: 1px solid {% if weapon.id in owned_weapon_ids %}#3b82f6{% else %}#334155{% endif %}; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3){% if weapon.id in owned_weapon_ids %}, 0 0 18px rgba(59,130,246,0.35){% endif %}; display:flex; flex-direction:column;">
 
-                {% if weapon.elderseal %}
-                <div style="display: flex; justify-content: space-between; padding-top: 8px;">
-                    <span style="color: #c084fc; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Elderseal</span>
-                    <span style="font-weight: 600; color: #c084fc;">{{ weapon.elderseal|capfirst }}</span>
-                </div>
+                {% if user.is_authenticated %}
+                <label style="position:absolute; top:12px; right:12px; display:flex; align-items:center; gap:5px; cursor:pointer;">
+                    <span style="font-size:0.7rem; font-weight:700; color:{% if weapon.id in owned_weapon_ids %}#3b82f6{% else %}#475569{% endif %}; text-transform:uppercase; letter-spacing:0.05em;">Owned</span>
+                    <input type="checkbox" id="own-weapon-{{ weapon.id }}"
+                           {% if weapon.id in owned_weapon_ids %}checked{% endif %}
+                           onchange="toggleInventory('weapon', {{ weapon.id }}, this, 'card-weapon-{{ weapon.id }}')"
+                           style="width:15px; height:15px; accent-color:#3b82f6; cursor:pointer;">
+                </label>
                 {% endif %}
 
-               {% if user.is_authenticated %}
-                    {% if weapon.id in owned_weapon_ids %}
-                        <button
-                            onclick="removeFromInventory('weapon', {{ weapon.id }}, this)"
-                            style="width:100%; background:#ef4444;">
-                            − Remove from Inventory
-                        </button>
-                    {% else %}
-                        <button
-                            onclick="addToInventory('weapon', {{ weapon.id }}, this)"
-                            style="width:100%; background:#3b82f6;">
-                            + Add to Inventory
-                        </button>
+                <h2 class="item-name" style="min-height:64px; display:flex; align-items:center; justify-content:center; font-size: 1.5rem; font-weight: bold; text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; color: #f8fafc; padding-right:24px;">
+                    {{ weapon.name }}
+                </h2>
+
+                <img
+                    src="{% static weapon.weapon_type|weapon_icon %}"
+                    alt="{{ weapon.name }}"
+                    style="width:96px; height:96px; object-fit:contain; margin:0 auto 12px; display:block; image-rendering: pixelated;"
+                >
+
+                <div style="flex:1; display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem;">
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Type</span>
+                        <span style="font-weight: 600;">{{ weapon.weapon_type|capfirst }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Attack</span>
+                        <span style="font-weight: 600; color: #ef4444;">{{ weapon.attack_display }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Rarity</span>
+                        <span style="font-weight: 600; color: #f59e0b;">{{ weapon.rarity }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element</span>
+                        <span style="font-weight: 600;">{% if weapon.element %}{{ weapon.element }}{% else %}None{% endif %}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Element Damage</span>
+                        <span style="font-weight: 600;">{{ weapon.element_damage|default:0 }}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 4px;">
+                        <span style="color: #94a3b8; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Affinity</span>
+                        <span style="font-weight: 600; color: #38bdf8;">{{ weapon.affinity }}%</span>
+                    </div>
+
+                    {% if weapon.elderseal %}
+                    <div style="display: flex; justify-content: space-between; padding-top: 8px;">
+                        <span style="color: #c084fc; font-weight: bold; text-transform: uppercase; font-size: 0.75rem;">Elderseal</span>
+                        <span style="font-weight: 600; color: #c084fc;">{{ weapon.elderseal|capfirst }}</span>
+                    </div>
                     {% endif %}
+                </div>
+
+                {% if user.is_authenticated %}
+                <div style="margin-top:16px; position:relative;">
+                    <button onclick="openBuildPicker({{ weapon.id }}, 'weapon', this)"
+                            style="width:100%; background:#7c3aed; border:none; color:white; padding:10px 12px; border-radius:10px; font-weight:700; cursor:pointer;">
+                        + Add to Build
+                    </button>
+                    <div id="picker-weapon-{{ weapon.id }}"
+                         style="display:none; position:absolute; bottom:calc(100% + 8px); left:0; right:0; background:#1e293b; border:1px solid #7c3aed; border-radius:10px; z-index:100; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.5);"></div>
+                </div>
                 {% endif %}
             </div>
+            {% empty %}
+            <div style="grid-column:span 3; text-align:center; padding:50px; color:#94a3b8;">No weapons match your search.</div>
+            {% endfor %}
         </div>
-        {% endfor %}
 
-    </div> 
+        {% if page_obj %}
+        <div style="display:flex; justify-content:center; align-items:center; gap:6px; margin-top:28px; flex-wrap:wrap;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">«</a>
+                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">‹</a>
+            {% endif %}
+            {% for p in page_range %}
+                {% if p == page_obj.number %}
+                    <span style="padding:8px 13px; background:#f8fafc; border:1px solid #f8fafc; border-radius:8px; color:#0f172a; font-weight:700;">{{ p }}</span>
+                {% else %}
+                    <a href="?page={{ p }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">{{ p }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">›</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">»</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
 </div>
 
 <script>
-function addToInventory(type, id, btn) {
-    fetch(`/inventory/add/${type}/${id}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-        }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.added) {
-            btn.textContent = '− Remove from Inventory';
-            btn.style.backgroundColor = '#ef4444';
-            btn.onclick = () => removeFromInventory(type, id, btn);
+const CSRF = '{{ csrf_token }}';
+
+function toggleInventory(type, id, checkbox, cardId) {
+    const owned = checkbox.checked;
+    const url = owned ? `/inventory/add/${type}/${id}/` : `/inventory/remove/${type}/${id}/`;
+    fetch(url, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
+    .then(r => r.json())
+    .then(() => {
+        const card = document.getElementById(cardId);
+        const label = checkbox.previousElementSibling;
+        if (owned) {
+            card.style.borderColor = '#3b82f6';
+            card.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.3), 0 0 18px rgba(59,130,246,0.35)';
+            if (label) label.style.color = '#3b82f6';
         } else {
-            btn.textContent = data.message;
+            card.style.borderColor = '#334155';
+            card.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.3)';
+            if (label) label.style.color = '#475569';
         }
-    })
-    .catch(() => showError(btn));
+    });
 }
 
-function removeFromInventory(type, id, btn) {
-    fetch(`/inventory/remove/${type}/${id}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-        }
-    })
-    .then(res => res.json())
+let activePicker = null;
+
+function openBuildPicker(itemId, itemType, btn) {
+    const pickerId = `picker-${itemType}-${itemId}`;
+    const picker = document.getElementById(pickerId);
+
+    if (activePicker && activePicker !== picker) {
+        activePicker.style.display = 'none';
+    }
+
+    if (picker.style.display === 'block') {
+        picker.style.display = 'none';
+        activePicker = null;
+        return;
+    }
+
+    picker.innerHTML = '<div style="padding:12px; color:#94a3b8; font-size:0.85rem;">Loading...</div>';
+    picker.style.display = 'block';
+    activePicker = picker;
+
+    fetch('/builds/mine/json/', { headers: { 'X-CSRFToken': CSRF } })
+    .then(r => r.json())
     .then(data => {
-        if (data.removed) {
-            btn.textContent = '+ Add to Inventory';
-            btn.style.backgroundColor = '#3b82f6';
-            btn.onclick = () => addToInventory(type, id, btn);
-        } else {
-            btn.textContent = data.message;
-        }
-    })
-    .catch(() => showError(btn));
+        const createRow = `<a href="/builds/create/" style="display:block; padding:10px 14px; color:#a855f7; font-size:0.85rem; font-weight:700; text-decoration:none; border-bottom:1px solid #334155;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">+ Create New Build</a>`;
+        const buildRows = data.builds.map(b => `
+            <div onclick="selectBuild(${b.pk}, ${itemId}, '${itemType}', '${pickerId}')"
+                 style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #334155; color:#f8fafc; font-size:0.85rem; font-weight:600;"
+                 onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">
+                ${b.title}
+            </div>`).join('');
+        picker.innerHTML = createRow + buildRows;
+    });
 }
 
-function showError(btn) {
-    btn.textContent = 'Error';
-    btn.style.backgroundColor = '#ef4444';
+function selectBuild(buildPk, itemId, itemType, pickerId) {
+    document.getElementById(pickerId).style.display = 'none';
+    activePicker = null;
+    postAddToBuild(buildPk, itemId, itemType, false);
 }
+
+function postAddToBuild(buildPk, itemId, itemType, force) {
+    const body = new URLSearchParams({ build_pk: buildPk, item_type: itemType, item_pk: itemId, force: force });
+    fetch('/builds/add-item/', { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body })
+    .then(r => r.json())
+    .then(data => {
+        if (data.warning) {
+            pendingReplace = { buildPk, itemId, itemType };
+            document.getElementById('replace-modal-msg').textContent = `This build already has "${data.existing_name}". Replace it with "${data.item_name}"?`;
+            document.getElementById('replace-modal').style.display = 'flex';
+        } else if (data.success) {
+            showToast('Added to build!');
+        }
+    });
+}
+
+function toggleSearch(btn) {
+    const input = btn.nextElementSibling;
+    if (input.style.display === 'none' || input.style.display === '') {
+        input.style.display = 'block';
+        input.focus();
+    } else {
+        input.style.display = 'none';
+    }
+}
+
+function showToast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed; bottom:24px; right:24px; background:#7c3aed; color:white; padding:10px 20px; border-radius:8px; font-weight:700; z-index:9999; font-size:0.9rem;';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
+}
+
+document.addEventListener('click', e => {
+    if (activePicker && !activePicker.contains(e.target) && !e.target.closest('button')) {
+        activePicker.style.display = 'none';
+        activePicker = null;
+    }
+});
+
+(function() {
+    const q = "{{ q|escapejs }}";
+    if (!q) return;
+    const regex = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    document.querySelectorAll('.item-name').forEach(el => {
+        el.innerHTML = el.textContent.replace(regex, '<mark style="background:#fbbf24;color:#0f172a;border-radius:3px;padding:0 2px;">$1</mark>');
+    });
+})();
+
+let pendingReplace = null;
+function confirmReplace() {
+    if (pendingReplace) {
+        const { buildPk, itemId, itemType } = pendingReplace;
+        pendingReplace = null;
+        closeReplaceModal();
+        postAddToBuild(buildPk, itemId, itemType, true);
+    }
+}
+function closeReplaceModal() {
+    document.getElementById('replace-modal').style.display = 'none';
+}
+document.getElementById('replace-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeReplaceModal();
+});
 </script>
 {% endblock %}

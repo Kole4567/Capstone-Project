@@ -11,4 +11,5 @@ urlpatterns = [
     path("remove/charm/<int:pk>/", views.remove_charm, name="remove_charm"),
     path('add/decoration/<int:pk>/', views.add_decoration, name='add_decoration'),
     path('remove/decoration/<int:pk>/', views.remove_decoration, name='remove_decoration'),
+    path('reset/', views.reset_inventory, name='reset_inventory'),
 ]

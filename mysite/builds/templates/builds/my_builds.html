@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:32px; max-width:420px; width:90%; text-align:center;">
+        <h2 style="font-size:1.3rem; font-weight:900; color:#f8fafc; margin:0 0 10px;">Delete Build?</h2>
+        <p style="color:#94a3b8; font-size:0.9rem; margin:0 0 28px;">This action cannot be undone.</p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+            <button onclick="closeDeleteModal()"
+                    style="background:#334155; color:#f8fafc; border:none; border-radius:8px; padding:10px 28px; font-size:0.9rem; font-weight:700; cursor:pointer;">
+                Cancel
+            </button>
+            <form id="delete-form" method="post" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit"
+                        style="background:#7f1d1d; color:#fca5a5; border:1px solid #ef4444; border-radius:8px; padding:10px 28px; font-size:0.9rem; font-weight:700; cursor:pointer;">
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div style="background-color:#0f172a; min-height:100vh; padding:40px 20px; color:white; font-family:sans-serif;">
+    <div style="max-width:1200px; margin:0 auto;">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:40px;">
+            <h1 style="font-size:2.5rem; font-weight:900; font-style:italic; color:#a855f7; text-transform:uppercase; margin:0;">
+                My Builds
+            </h1>
+            <a href="{% url 'build_create' %}"
+               style="background:#a855f7; color:white; border-radius:10px; padding:12px 24px; font-weight:700; text-decoration:none; font-size:0.9rem;">
+                + Create Build
+            </a>
+        </div>
+
+        {% if builds %}
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:24px;">
+            {% for build in builds %}
+            <div onclick="window.location='{% url 'build_detail' build.pk %}'"
+                 style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:16px; cursor:pointer; transition:border-color 0.15s; position:relative;"
+                 onmouseover="this.style.borderColor='#a855f7'" onmouseout="this.style.borderColor='#334155'">
+
+                <!-- Header -->
+                <div>
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                        <h2 style="font-size:1.2rem; font-weight:800; color:#f8fafc; margin:0;">{{ build.title }}</h2>
+                        {% if not build.is_public %}
+                        <span style="background:#334155; color:#94a3b8; font-size:0.65rem; padding:2px 8px; border-radius:999px; font-weight:700;">PRIVATE</span>
+                        {% endif %}
+                    </div>
+                    <span style="color:#475569; font-size:0.75rem;">{{ build.created_at|date:"M d, Y" }}</span>
+                </div>
+
+                {% if build.description %}
+                <p style="color:#94a3b8; font-size:0.85rem; margin:0; line-height:1.5;">{{ build.description|truncatechars:120 }}</p>
+                {% endif %}
+
+                <!-- Gear Summary -->
+                <div style="background:#0f172a; border-radius:8px; padding:12px; font-size:0.8rem; display:flex; flex-direction:column; gap:6px;">
+                    {% if build.weapon %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Weapon</span><span style="color:#60a5fa; font-weight:600;">{{ build.weapon.name }}</span></div>{% endif %}
+                    {% if build.head %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Head</span><span style="color:#f8fafc;">{{ build.head.name }}</span></div>{% endif %}
+                    {% if build.chest %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Chest</span><span style="color:#f8fafc;">{{ build.chest.name }}</span></div>{% endif %}
+                    {% if build.arms %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Arms</span><span style="color:#f8fafc;">{{ build.arms.name }}</span></div>{% endif %}
+                    {% if build.waist %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Waist</span><span style="color:#f8fafc;">{{ build.waist.name }}</span></div>{% endif %}
+                    {% if build.legs %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Legs</span><span style="color:#f8fafc;">{{ build.legs.name }}</span></div>{% endif %}
+                    {% if build.charm %}<div style="display:flex; justify-content:space-between;"><span style="color:#64748b;">Charm</span><span style="color:#f472b6;">{{ build.charm.name }}</span></div>{% endif %}
+                </div>
+
+                <!-- Footer -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-top:auto;">
+                    <span style="color:#64748b; font-size:0.8rem;">▲ {{ build.like_count }} &nbsp;·&nbsp; 💬 {{ build.comment_count }}</span>
+                    <button onclick="event.stopPropagation(); openDeleteModal('{% url 'build_delete' build.pk %}')"
+                            style="background:#7f1d1d; color:#fca5a5; border:1px solid #ef4444; border-radius:8px; padding:6px 16px; font-size:0.75rem; font-weight:700; cursor:pointer;">
+                        Delete
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:80px; color:#475569;">
+            <p style="font-size:1.2rem; margin-bottom:16px;">You haven't created any builds yet.</p>
+            <a href="{% url 'build_create' %}" style="color:#a855f7; font-weight:700;">Create your first build →</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function openDeleteModal(url) {
+    document.getElementById('delete-form').action = url;
+    const modal = document.getElementById('delete-modal');
+    modal.style.display = 'flex';
+}
+function closeDeleteModal() {
+    document.getElementById('delete-modal').style.display = 'none';
+}
+document.getElementById('delete-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteModal();
+});
+</script>
+{% endblock %}

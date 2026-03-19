@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="background-color:#0f172a; min-height:100vh; padding:40px 20px; color:white; font-family:sans-serif;">
+    <div style="max-width:800px; margin:0 auto;">
+
+        <h1 style="font-size:2.5rem; font-weight:900; font-style:italic; color:#a855f7; text-transform:uppercase; margin-bottom:40px;">
+            Create Build
+        </h1>
+
+        <form method="post" id="build-form" style="display:flex; flex-direction:column; gap:24px;">
+            {% csrf_token %}
+
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:16px;">
+                <h2 style="color:#a855f7; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0;">Build Info</h2>
+                <div>
+                    <label style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; font-weight:700; display:block; margin-bottom:6px;">Title *</label>
+                    <input type="text" name="title" required placeholder="e.g. Anti-Nergigante Speed Run"
+                           style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.95rem; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; font-weight:700; display:block; margin-bottom:6px;">Description</label>
+                    <textarea name="description" rows="3" placeholder="What makes this build special?"
+                              style="width:100%; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:10px 14px; font-size:0.95rem; box-sizing:border-box; resize:vertical;"></textarea>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" name="is_public" id="is_public" checked style="width:16px; height:16px; accent-color:#a855f7;">
+                    <label for="is_public" style="color:#94a3b8; font-size:0.85rem;">Make this build public</label>
+                </div>
+            </div>
+
+            <!-- Weapon -->
+            <div style="background:#1e293b; border:1px solid #3b82f6; border-radius:12px; padding:24px;">
+                <h2 style="color:#60a5fa; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0 0 16px;">⚔️ Weapon</h2>
+                <input type="hidden" name="weapon" id="val-weapon">
+                <div id="search-weapon"></div>
+            </div>
+
+            <!-- Armor -->
+            <div style="background:#1e293b; border:1px solid #10b981; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:14px;">
+                <h2 style="color:#34d399; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0;">🛡️ Armor</h2>
+                {% for slot, label, items in slot_data %}
+                <div>
+                    <label style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; font-weight:700; display:block; margin-bottom:6px;">{{ label }}</label>
+                    <input type="hidden" name="{{ slot }}" id="val-{{ slot }}">
+                    <div id="search-{{ slot }}"></div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Charm -->
+            <div style="background:#1e293b; border:1px solid #f472b6; border-radius:12px; padding:24px;">
+                <h2 style="color:#f472b6; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0 0 16px;">✨ Charm</h2>
+                <input type="hidden" name="charm" id="val-charm">
+                <div id="search-charm"></div>
+            </div>
+
+            <!-- Decorations -->
+            <div style="background:#1e293b; border:1px solid #f59e0b; border-radius:12px; padding:24px;">
+                <h2 style="color:#fbbf24; font-size:1rem; font-weight:700; text-transform:uppercase; margin:0 0 4px;">💎 Decorations</h2>
+                <p style="color:#64748b; font-size:0.75rem; margin:0 0 12px;">Search and add multiple</p>
+                <div id="deco-tags" style="display:flex; flex-wrap:wrap; gap:6px; min-height:28px; margin-bottom:10px;"></div>
+                <div id="search-decoration"></div>
+            </div>
+
+            <div style="display:flex; gap:12px;">
+                <button type="submit"
+                        style="flex:1; background:#a855f7; color:white; border:none; border-radius:10px; padding:14px; font-weight:700; font-size:1rem; cursor:pointer;">
+                    Save Build
+                </button>
+                <a href="{% url 'builds_feed' %}"
+                   style="background:#334155; color:white; border-radius:10px; padding:14px 24px; font-weight:700; text-decoration:none; font-size:1rem;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const DATA = {
+    weapon: [{% for w in weapons %}{pk:{{w.pk}},name:"{{w.name|escapejs}}",sub:"{{w.weapon_type|capfirst|escapejs}}, R{{w.rarity}}, ATK {{w.attack_raw}}"},{% endfor %}],
+    {% for slot, label, items in slot_data %}"{{slot}}":[{% for a in items %}{pk:{{a.pk}},name:"{{a.name|escapejs}}",sub:"R{{a.rarity}}, DEF {{a.defense_base}}"},{% endfor %}],
+    {% endfor %}charm:[{% for c in charms %}{pk:{{c.pk}},name:"{{c.name|escapejs}}",sub:"{% if c.rarity %}R{{c.rarity}}{% endif %}"},{% endfor %}],
+    decoration:[{% for d in decorations %}{pk:{{d.pk}},name:"{{d.name|escapejs}}",sub:"R{{d.rarity}}"},{% endfor %}],
+};
+
+const ACCENT = {weapon:'#3b82f6',head:'#10b981',chest:'#10b981',arms:'#10b981',waist:'#10b981',legs:'#10b981',charm:'#f472b6'};
+const selectedDecos = {};
+
+function buildSearch(slot) {
+    const accent = ACCENT[slot] || '#a855f7';
+    const c = document.getElementById('search-' + slot);
+    c.innerHTML = `
+        <div style="position:relative;">
+            <div id="disp-${slot}" onclick="openSearch('${slot}')"
+                 style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; min-height:42px;">
+                <span id="disp-text-${slot}" style="color:#64748b; font-size:0.9rem;">— None —</span>
+                <span style="color:#475569; font-size:0.85rem; padding:2px 6px;" onmousedown="clearSlot('${slot}', event)">✕</span>
+            </div>
+            <div id="sbox-${slot}" style="display:none; position:relative; z-index:10; margin-top:4px;">
+                <input id="q-${slot}" type="text" placeholder="Search..." autocomplete="off"
+                       style="width:100%; background:#0f172a; color:white; border:1px solid ${accent}; border-radius:8px 8px 0 0; padding:10px 14px; font-size:0.9rem; box-sizing:border-box; outline:none;"
+                       oninput="filterItems('${slot}')">
+                <div id="res-${slot}" style="background:#111827; border:1px solid #334155; border-top:none; border-radius:0 0 8px 8px; max-height:220px; overflow-y:auto;"></div>
+            </div>
+        </div>`;
+    renderResults(slot, DATA[slot].slice(0, 15));
+    document.getElementById('q-' + slot).addEventListener('blur', () => {
+        setTimeout(() => { document.getElementById('sbox-' + slot).style.display = 'none'; }, 150);
+    });
+}
+
+function buildDecoSearch() {
+    const c = document.getElementById('search-decoration');
+    c.innerHTML = `
+        <input id="q-decoration" type="text" placeholder="Search decorations..." autocomplete="off"
+               style="width:100%; background:#0f172a; color:white; border:1px solid #f59e0b; border-radius:8px; padding:10px 14px; font-size:0.9rem; box-sizing:border-box; outline:none;"
+               oninput="filterDecos()">
+        <div id="res-decoration" style="display:none; background:#111827; border:1px solid #334155; border-top:none; border-radius:0 0 8px 8px; max-height:220px; overflow-y:auto;"></div>`;
+    document.getElementById('q-decoration').addEventListener('blur', () => {
+        setTimeout(() => { document.getElementById('res-decoration').style.display = 'none'; }, 150);
+    });
+}
+
+function openSearch(slot) {
+    document.getElementById('sbox-' + slot).style.display = 'block';
+    const q = document.getElementById('q-' + slot);
+    q.value = '';
+    q.focus();
+    renderResults(slot, DATA[slot].slice(0, 15));
+}
+
+function clearSlot(slot, event) {
+    event.preventDefault();
+    document.getElementById('val-' + slot).value = '';
+    const t = document.getElementById('disp-text-' + slot);
+    t.textContent = '— None —';
+    t.style.color = '#64748b';
+}
+
+function filterItems(slot) {
+    const q = document.getElementById('q-' + slot).value.toLowerCase().trim();
+    const results = q ? DATA[slot].filter(i => i.name.toLowerCase().includes(q)).slice(0, 30) : DATA[slot].slice(0, 15);
+    renderResults(slot, results);
+}
+
+function renderResults(slot, items) {
+    const div = document.getElementById('res-' + slot);
+    div.innerHTML = '';
+    if (!items.length) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding:10px 14px; color:#475569; font-size:0.85rem;';
+        empty.textContent = 'No results';
+        div.appendChild(empty);
+        return;
+    }
+    items.forEach(item => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:10px 14px; cursor:pointer; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center;';
+        row.innerHTML = `<span style="color:#f8fafc; font-size:0.9rem; font-weight:600;">${item.name}</span><span style="color:#64748b; font-size:0.75rem; margin-left:8px;">${item.sub}</span>`;
+        row.addEventListener('mouseenter', () => row.style.background = '#1e293b');
+        row.addEventListener('mouseleave', () => row.style.background = '');
+        row.addEventListener('mousedown', e => { e.preventDefault(); selectItem(slot, item.pk, item.name, item.sub); });
+        div.appendChild(row);
+    });
+}
+
+function selectItem(slot, pk, name, sub) {
+    document.getElementById('val-' + slot).value = pk;
+    const t = document.getElementById('disp-text-' + slot);
+    t.textContent = name + (sub ? '  ·  ' + sub : '');
+    t.style.color = '#f8fafc';
+    document.getElementById('sbox-' + slot).style.display = 'none';
+}
+
+function filterDecos() {
+    const q = document.getElementById('q-decoration').value.toLowerCase().trim();
+    const resDiv = document.getElementById('res-decoration');
+    if (!q) { resDiv.style.display = 'none'; return; }
+    const results = DATA.decoration.filter(d => d.name.toLowerCase().includes(q) && !selectedDecos[d.pk]).slice(0, 20);
+    resDiv.style.display = 'block';
+    resDiv.innerHTML = '';
+    if (!results.length) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding:10px 14px; color:#475569; font-size:0.85rem;';
+        empty.textContent = 'No results';
+        resDiv.appendChild(empty);
+        return;
+    }
+    results.forEach(d => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:10px 14px; cursor:pointer; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between;';
+        row.innerHTML = `<span style="color:#f8fafc; font-size:0.9rem;">${d.name}</span><span style="color:#64748b; font-size:0.75rem;">${d.sub}</span>`;
+        row.addEventListener('mouseenter', () => row.style.background = '#1e293b');
+        row.addEventListener('mouseleave', () => row.style.background = '');
+        row.addEventListener('mousedown', e => { e.preventDefault(); addDeco(d.pk, d.name); });
+        resDiv.appendChild(row);
+    });
+}
+
+function addDeco(pk, name) {
+    if (selectedDecos[pk]) return;
+    selectedDecos[pk] = name;
+    document.getElementById('q-decoration').value = '';
+    document.getElementById('res-decoration').style.display = 'none';
+    renderDecoTags();
+}
+
+function removeDeco(pk) {
+    delete selectedDecos[pk];
+    renderDecoTags();
+}
+
+function renderDecoTags() {
+    const tags = document.getElementById('deco-tags');
+    document.querySelectorAll('input[name="decorations"]').forEach(el => el.remove());
+    tags.innerHTML = Object.entries(selectedDecos).map(([pk, name]) => `
+        <div style="background:#451a03; border:1px solid #f59e0b; border-radius:6px; padding:4px 10px; display:flex; align-items:center; gap:8px;">
+            <span style="color:#fbbf24; font-size:0.8rem; font-weight:700;">${name}</span>
+            <span onclick="removeDeco(${pk})" style="color:#92400e; cursor:pointer; font-weight:900; font-size:1rem; line-height:1;">✕</span>
+        </div>`).join('');
+    const form = document.getElementById('build-form');
+    Object.keys(selectedDecos).forEach(pk => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'decorations'; inp.value = pk;
+        form.appendChild(inp);
+    });
+}
+
+// Initialize
+buildSearch('weapon');
+{% for slot, label, items in slot_data %}buildSearch('{{ slot }}');
+{% endfor %}buildSearch('charm');
+buildDecoSearch();
+</script>
+{% endblock %}
