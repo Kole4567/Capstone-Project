@@ -106,6 +106,26 @@
 
     </div>
 
+    <!-- SKILLS SUMMARY -->
+    {% if build.skills %}
+    <div class="mt-8" style="background:rgba(30,41,59,0.6); backdrop-filter:blur(24px); border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); padding:24px; border:1px solid #a78bfa; position:relative;">
+        <span style="position:absolute; left:0; top:0; height:100%; width:4px; background:#a78bfa; border-radius:12px 0 0 12px;"></span>
+        <h2 style="font-size:1.1rem; font-weight:600; margin-bottom:16px; border-bottom:1px solid #334155; padding-bottom:8px; color:#c4b5fd;">
+            🎯 Total Skills
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 text-sm">
+            {% for skill_name, level in build.skills.items %}
+            <div style="background:rgba(167,139,250,0.1); border:1px solid #4c1d95; border-radius:8px; padding:10px 14px;">
+                <div style="color:#c4b5fd; font-weight:600;">{{ skill_name }}</div>
+                <div style="color:#e2e8f0; margin-top:4px;">
+                    Lv <span style="color:#a78bfa; font-weight:700;">{{ level }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- BACK BUTTON -->
     <div class="mt-12">
         <a href="{% url 'monsters_index' %}" class="inline-flex items-center gap-2 text-slate-300 hover:text-white transition">
