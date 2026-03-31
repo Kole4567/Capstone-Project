@@ -11,3 +11,6 @@ db.sqlite3
 
 # macOS
 .DS_Store
+
+# Environment variables
+.env

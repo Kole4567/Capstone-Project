@@ -4,7 +4,9 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.db.models import Count
-from .models import CommunityPost, CommunityComment
+from django.core.mail import send_mail
+from django.conf import settings
+from .models import CommunityPost, CommunityComment, CommunityPostReport, CommunityCommentReport
 
 
 def feed(request):
@@ -113,6 +115,67 @@ def upvote(request, pk):
         post.upvotes.add(request.user)
         upvoted = True
     return JsonResponse({'upvoted': upvoted, 'count': post.upvote_count()})
+
+
+@login_required
+@require_POST
+def report_post(request, pk):
+    post = get_object_or_404(CommunityPost, pk=pk)
+    if post.user == request.user:
+        return JsonResponse({'error': 'Cannot report your own post'}, status=400)
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({'error': 'Reason is required'}, status=400)
+    _, created = CommunityPostReport.objects.get_or_create(
+        user=request.user, post=post,
+        defaults={'reason': reason}
+    )
+    if created:
+        send_mail(
+            subject=f'[Report] Community Post: {post.title}',
+            message=(
+                f'Reporter: {request.user.username}\n'
+                f'Post: {post.title} (ID: {post.pk})\n'
+                f'Author: {post.user.username}\n'
+                f'Reason: {reason}\n\n'
+                f'Admin link: http://127.0.0.1:8000/admin/community/communitypost/{post.pk}/change/'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.REPORT_RECIPIENT],
+            fail_silently=True,
+        )
+    return JsonResponse({'reported': True, 'already': not created})
+
+
+@login_required
+@require_POST
+def report_comment(request, pk):
+    comment = get_object_or_404(CommunityComment, pk=pk)
+    if comment.user == request.user:
+        return JsonResponse({'error': 'Cannot report your own comment'}, status=400)
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({'error': 'Reason is required'}, status=400)
+    _, created = CommunityCommentReport.objects.get_or_create(
+        user=request.user, comment=comment,
+        defaults={'reason': reason}
+    )
+    if created:
+        send_mail(
+            subject=f'[Report] Comment on: {comment.post.title}',
+            message=(
+                f'Reporter: {request.user.username}\n'
+                f'Post: {comment.post.title} (ID: {comment.post.pk})\n'
+                f'Comment author: {comment.user.username}\n'
+                f'Comment: {comment.body}\n'
+                f'Reason: {reason}\n\n'
+                f'Admin link: http://127.0.0.1:8000/admin/community/communitycomment/{comment.pk}/change/'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.REPORT_RECIPIENT],
+            fail_silently=True,
+        )
+    return JsonResponse({'reported': True, 'already': not created})
 
 
 @login_required

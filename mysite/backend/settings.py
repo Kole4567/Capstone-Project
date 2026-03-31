@@ -11,9 +11,19 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env file
+_env_path = BASE_DIR / '.env'
+if _env_path.exists():
+    for _line in _env_path.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith('#') and '=' in _line:
+            _k, _v = _line.split('=', 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 
 # Quick-start development settings - unsuitable for production
@@ -158,7 +168,7 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 #Google Oauth
-SITE_ID = 1
+SITE_ID = 2
 
 # Tell Django to use allauth for authentication
 AUTHENTICATION_BACKENDS = [
@@ -168,3 +178,13 @@ AUTHENTICATION_BACKENDS = [
 
 LOGIN_REDIRECT_URL = '/' # Where to go after logging in
 LOGOUT_REDIRECT_URL = '/'
+
+# Email
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+REPORT_RECIPIENT = os.environ.get('REPORT_RECIPIENT', 'yongjun.kim@smail.astate.edu')
