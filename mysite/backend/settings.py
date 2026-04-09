@@ -31,6 +31,10 @@ ALLOWED_HOSTS = [
     'localhost',
 ]
 
+#Ngrok verification
+CSRF_TRUSTED_ORIGINS = [
+    'https://nonshipping-cryptographically-cammy.ngrok-free.dev',
+]
 
 # Application definition
 
@@ -166,5 +170,6 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
 LOGIN_REDIRECT_URL = '/' # Where to go after logging in
 LOGOUT_REDIRECT_URL = '/'

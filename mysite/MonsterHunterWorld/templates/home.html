@@ -51,7 +51,7 @@
     <div class="card bg-base-200 shadow-xl hover:scale-105 transition-transform duration-300 border border-secondary/20">
       <figure class="px-10 pt-10">
         <img
-          src="{% static 'images/armors/armors_logo.png' %}"
+          src="{% static 'images/armors/ArmorIcon.webp' %}"
           alt="Armors"
           class="rounded-xl h-40 object-contain"
         />
@@ -71,13 +71,13 @@
     <div class="card bg-base-200 shadow-xl hover:scale-105 transition-transform duration-300 border border-accent/20">
       <figure class="px-10 pt-10">
         <img
-          src="{% static 'images/charms/charm_logo.jpg' %}"
+          src="{% static 'images/charms/CharmIcon.webp' %}"
           alt="Charms"
           class="rounded-xl h-40 object-contain"
         />
       </figure>
       <div class="card-body items-center text-center">
-        <h2 class="card-title text-2xl font-bold">Charms & Decorations</h2>
+        <h2 class="card-title text-2xl font-bold">Charms</h2>
         <p>Optimize your build with the best skills and decoration slots.</p>
         <div class="card-actions mt-4">
           <a href="{% url 'charms_index' %}" class="btn btn-outline btn-accent">
@@ -88,7 +88,7 @@
     </div>
 
     <!-- Monsters (spans full width) -->
-    <div class="card bg-base-200 shadow-xl hover:scale-105 transition-transform duration-300 border border-accent/20" style="grid-column: 1 / -1;">
+    <div class="card bg-base-200 shadow-xl hover:scale-105 transition-transform duration-300 border border-accent/20">
       <figure class="px-10 pt-10">
         <img
           src="{% static 'images/monsters/monster_logo.webp' %}"
@@ -102,6 +102,26 @@
         <div class="card-actions mt-2">
           <a href="{% url 'monsters_index' %}" class="btn btn-outline btn-accent">
             Browse Monsters
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- DECORATIONS -->
+    <div class="card bg-base-200 shadow-xl hover:scale-105 transition-transform duration-300 border border-primary/20">
+      <figure class="px-10 pt-10">
+        <img
+          src="{% static 'images/decorations/Decoration.png' %}"
+          alt="Decorations"
+          class="rounded-xl h-40 object-contain"
+        />
+      </figure>
+      <div class="card-body items-center text-center">
+        <h2 class="card-title text-2xl font-bold">Decorations</h2>
+        <p>Even the odds by making your gear better</p>
+        <div class="card-actions mt-4">
+          <a href="{% url 'decorations_index' %}" class="btn btn-outline btn-primary">
+            Browse Decorations
           </a>
         </div>
       </div>
