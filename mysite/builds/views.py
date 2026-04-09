@@ -5,8 +5,10 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.db.models import Count
+from django.core.mail import send_mail
+from django.conf import settings
 from MonsterHunterWorld.models import Weapon, Armor, Charm, Decoration
-from .models import SavedBuild, BuildLike, BuildComment
+from .models import SavedBuild, BuildLike, BuildComment, BuildReport, BuildCommentReport
 
 
 def feed(request):
@@ -241,6 +243,67 @@ def add_to_build(request):
         return JsonResponse({'error': 'Invalid item type'}, status=400)
 
     return JsonResponse({'success': True})
+
+
+@login_required
+@require_POST
+def report_build(request, pk):
+    build = get_object_or_404(SavedBuild, pk=pk)
+    if build.user == request.user:
+        return JsonResponse({'error': 'Cannot report your own build'}, status=400)
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({'error': 'Reason is required'}, status=400)
+    _, created = BuildReport.objects.get_or_create(
+        user=request.user, build=build,
+        defaults={'reason': reason}
+    )
+    if created:
+        send_mail(
+            subject=f'[Report] Build: {build.title}',
+            message=(
+                f'Reporter: {request.user.username}\n'
+                f'Build: {build.title} (ID: {build.pk})\n'
+                f'Author: {build.user.username}\n'
+                f'Reason: {reason}\n\n'
+                f'Admin link: http://127.0.0.1:8000/admin/builds/savedbuild/{build.pk}/change/'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.REPORT_RECIPIENT],
+            fail_silently=True,
+        )
+    return JsonResponse({'reported': True, 'already': not created})
+
+
+@login_required
+@require_POST
+def report_build_comment(request, pk):
+    comment = get_object_or_404(BuildComment, pk=pk)
+    if comment.user == request.user:
+        return JsonResponse({'error': 'Cannot report your own comment'}, status=400)
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({'error': 'Reason is required'}, status=400)
+    _, created = BuildCommentReport.objects.get_or_create(
+        user=request.user, comment=comment,
+        defaults={'reason': reason}
+    )
+    if created:
+        send_mail(
+            subject=f'[Report] Comment on build: {comment.build.title}',
+            message=(
+                f'Reporter: {request.user.username}\n'
+                f'Build: {comment.build.title} (ID: {comment.build.pk})\n'
+                f'Comment author: {comment.user.username}\n'
+                f'Comment: {comment.text}\n'
+                f'Reason: {reason}\n\n'
+                f'Admin link: http://127.0.0.1:8000/admin/builds/buildcomment/{comment.pk}/change/'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.REPORT_RECIPIENT],
+            fail_silently=True,
+        )
+    return JsonResponse({'reported': True, 'already': not created})
 
 
 def user_profile(request, username):

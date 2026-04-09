@@ -27,3 +27,29 @@ class CommunityComment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} on '{self.post.title}'"
+
+
+class CommunityPostReport(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    post = models.ForeignKey(CommunityPost, on_delete=models.CASCADE, related_name='reports')
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'post')
+
+    def __str__(self):
+        return f"{self.user.username} reported post '{self.post.title}'"
+
+
+class CommunityCommentReport(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    comment = models.ForeignKey(CommunityComment, on_delete=models.CASCADE, related_name='reports')
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'comment')
+
+    def __str__(self):
+        return f"{self.user.username} reported comment by '{self.comment.user.username}'"

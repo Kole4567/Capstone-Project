@@ -12,4 +12,6 @@ urlpatterns = [
     path('mine/', views.my_builds, name='my_builds'),
     path('mine/json/', views.my_builds_json, name='my_builds_json'),
     path('add-item/', views.add_to_build, name='add_to_build'),
+    path('<int:pk>/report/', views.report_build, name='build_report'),
+    path('comment/<int:pk>/report/', views.report_build_comment, name='build_comment_report'),
 ]

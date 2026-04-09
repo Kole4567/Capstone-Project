@@ -47,3 +47,29 @@ class BuildComment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} on '{self.build.title}'"
+
+
+class BuildReport(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    build = models.ForeignKey(SavedBuild, on_delete=models.CASCADE, related_name='reports')
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'build')
+
+    def __str__(self):
+        return f"{self.user.username} reported build '{self.build.title}'"
+
+
+class BuildCommentReport(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    comment = models.ForeignKey(BuildComment, on_delete=models.CASCADE, related_name='reports')
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'comment')
+
+    def __str__(self):
+        return f"{self.user.username} reported comment by '{self.comment.user.username}'"
