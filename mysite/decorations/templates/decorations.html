@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 
+<style>
+@media (max-width: 480px) {
+    #replace-modal > div { padding: 20px 16px !important; }
+}
+</style>
 <!-- Replace Item Modal -->
 <div id="replace-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:32px; max-width:420px; width:90%; text-align:center;">
@@ -19,7 +24,7 @@
     </div>
 </div>
 
-<div style="background-color: #0f172a; min-height: 100vh; padding: 40px; color: white; font-family: sans-serif;">
+<div style="background-color: #0f172a; min-height: 100vh; padding: 40px 20px; color: white; font-family: sans-serif;">
     <div style="max-width: 1200px; margin: 0 auto;">
 
         <!-- Page Header -->
@@ -49,7 +54,7 @@
                         </svg>
                     </button>
                     <input type="text" name="q" value="{{ q }}" placeholder="Decoration name…"
-                           style="display:{% if q %}block{% else %}none{% endif %}; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem; font-family:inherit; width:240px; box-sizing:border-box;"
+                           style="display:{% if q %}block{% else %}none{% endif %}; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem; font-family:inherit; width:100%; max-width:240px; box-sizing:border-box;"
                            onkeydown="if(event.key==='Enter'){this.form.submit();}">
                 </div>
                 <button type="submit" style="background:#f59e0b; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer; font-family:inherit;">Search</button>
@@ -62,7 +67,7 @@
             decoration{{ page_obj.paginator.count|pluralize }}{% if q or rarity_filter %} found{% endif %}
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;">
             {% for deco in decorations %}
             <div id="card-decoration-{{ deco.id }}"
                  style="position:relative; background-color: #1e293b; border: 1px solid {% if deco.id in owned_decoration_ids %}#f59e0b{% else %}#334155{% endif %}; border-radius: 12px; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3){% if deco.id in owned_decoration_ids %}, 0 0 18px rgba(245,158,11,0.35){% endif %}; display: flex; flex-direction: column; gap:0;">
@@ -129,26 +134,26 @@
                 {% endif %}
             </div>
             {% empty %}
-            <div style="grid-column:span 3; text-align:center; padding:50px; color:#94a3b8;">No decorations match your search.</div>
+            <div style="grid-column:1 / -1; text-align:center; padding:50px; color:#94a3b8;">No decorations match your search.</div>
             {% endfor %}
         </div>
 
         {% if page_obj %}
         <div style="display:flex; justify-content:center; align-items:center; gap:6px; margin-top:28px; flex-wrap:wrap;">
             {% if page_obj.has_previous %}
-                <a href="?page=1&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">«</a>
-                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">‹</a>
+                <a href="?page=1&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">«</a>
+                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">‹</a>
             {% endif %}
             {% for p in page_range %}
                 {% if p == page_obj.number %}
-                    <span style="padding:8px 13px; background:#f8fafc; border:1px solid #f8fafc; border-radius:8px; color:#0f172a; font-weight:700;">{{ p }}</span>
+                    <span style="padding:10px 16px; min-width:40px; text-align:center; background:#f8fafc; border:1px solid #f8fafc; border-radius:8px; color:#0f172a; font-weight:700;">{{ p }}</span>
                 {% else %}
-                    <a href="?page={{ p }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">{{ p }}</a>
+                    <a href="?page={{ p }}&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">{{ p }}</a>
                 {% endif %}
             {% endfor %}
             {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">›</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">»</a>
+                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">›</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">»</a>
             {% endif %}
         </div>
         {% endif %}

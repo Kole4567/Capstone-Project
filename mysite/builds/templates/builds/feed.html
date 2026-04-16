@@ -37,7 +37,7 @@
                                 </svg>
                             </button>
                             <input type="text" name="q" value="{{ q }}" placeholder="Build title…"
-                                   style="display:{% if q %}block{% else %}none{% endif %}; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem; font-family:inherit; width:240px; box-sizing:border-box;"
+                                   style="display:{% if q %}block{% else %}none{% endif %}; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; padding:8px 12px; font-size:0.9rem; font-family:inherit; width:100%; max-width:240px; box-sizing:border-box;"
                                    onkeydown="if(event.key==='Enter'){this.form.submit();}">
                         </div>
                         <button type="submit" style="background:#a855f7; color:white; border:none; border-radius:8px; padding:9px 20px; font-weight:700; cursor:pointer; font-family:inherit;">Search</button>
@@ -52,7 +52,7 @@
         </div>
 
         {% if builds %}
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:24px;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:24px;">
             {% for build in builds %}
             <div onclick="window.location='{% url 'build_detail' build.pk %}'"
                  style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; display:flex; flex-direction:column; gap:16px; cursor:pointer; transition:border-color 0.15s;"
@@ -103,19 +103,19 @@
         {% if page_obj %}
         <div style="display:flex; justify-content:center; align-items:center; gap:6px; margin-top:28px; flex-wrap:wrap;">
             {% if page_obj.has_previous %}
-                <a href="?page=1&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">«</a>
-                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">‹</a>
+                <a href="?page=1&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">«</a>
+                <a href="?page={{ page_obj.previous_page_number }}&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">‹</a>
             {% endif %}
             {% for p in page_range %}
                 {% if p == page_obj.number %}
-                    <span style="padding:8px 13px; background:#f8fafc; border:1px solid #f8fafc; border-radius:8px; color:#0f172a; font-weight:700;">{{ p }}</span>
+                    <span style="padding:10px 16px; min-width:40px; text-align:center; background:#f8fafc; border:1px solid #f8fafc; border-radius:8px; color:#0f172a; font-weight:700;">{{ p }}</span>
                 {% else %}
-                    <a href="?page={{ p }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">{{ p }}</a>
+                    <a href="?page={{ p }}&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">{{ p }}</a>
                 {% endif %}
             {% endfor %}
             {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">›</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}" style="padding:8px 13px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">»</a>
+                <a href="?page={{ page_obj.next_page_number }}&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">›</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}&{{ filter_qs }}" style="padding:10px 16px; min-width:40px; text-align:center; background:#1e293b; border:1px solid #334155; border-radius:8px; color:white; text-decoration:none; font-weight:700;" onmouseover="this.style.borderColor='#94a3b8'" onmouseout="this.style.borderColor='#334155'">»</a>
             {% endif %}
         </div>
         {% endif %}
